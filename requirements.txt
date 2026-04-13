@@ -1,0 +1,8 @@
+# 中文说明：
+# 当前这版 software-only simulation 只依赖 Python 标准库。
+# 后续如果切到更贴近真实环境的 virtual CAN / SocketCAN，
+# 再加入下面这些依赖：
+#
+# python-can
+# can-isotp
+# udsoncan
