@@ -8,6 +8,14 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
+from .backends import (
+    BACKEND_IN_MEMORY,
+    BACKEND_PYTHON_CAN_SOCKETCAN,
+    BACKEND_PYTHON_CAN_VIRTUAL,
+    backend_config_by_name,
+)
 from .bus import InMemoryCanBus
 from .client import UdsClient
 from .ecu import (
@@ -21,7 +29,14 @@ from .ecu import (
 )
 from .gateway import GATEWAY_MODE_MISCONFIGURED, GatewayRoute, RoutedDiagnosticGateway
 from .protocol import UDSResponse
+from .pythoncan import PythonCanRuntime, build_python_can_runtime
 from .server import MockEcuServer
+from .socketcan import (
+    SocketCanGatewayRuntime,
+    SocketCanIsoTpConnection,
+    SocketCanRuntime,
+    SocketCanUdsServer,
+)
 from .transport import EndpointConfig, InMemoryIsoTpConnection
 
 
@@ -33,6 +48,42 @@ def format_response(label: str, response: UDSResponse) -> str:
         f"{label}: NEGATIVE sid=0x{response.sid:02X} "
         f"orig=0x{response.original_sid:02X} nrc=0x{response.nrc:02X}"
     )
+
+
+@dataclass
+class LiveSocketCanScenario:
+    """把 client 和底层 SocketCAN runtime 打包在一起。"""
+
+    client: UdsClient
+    runtime: SocketCanRuntime
+
+    def __enter__(self) -> "LiveSocketCanScenario":
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        del exc_type, exc, tb
+        self.close()
+
+    def close(self) -> None:
+        self.runtime.close()
+
+
+@dataclass
+class LivePythonCanScenario:
+    """把 client 和 python-can runtime 打包在一起。"""
+
+    client: UdsClient
+    runtime: PythonCanRuntime
+
+    def __enter__(self) -> "LivePythonCanScenario":
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        del exc_type, exc, tb
+        self.close()
+
+    def close(self) -> None:
+        self.runtime.close()
 
 
 def build_direct_client_and_server(server: MockEcuServer) -> UdsClient:
@@ -74,6 +125,220 @@ def build_gateway_routed_client_and_server(
 def build_default_client_and_server(server: MockEcuServer) -> UdsClient:
     """默认用 gateway-routed 模式，更贴近 thesis 目标场景。"""
     return build_gateway_routed_client_and_server(server)
+
+
+def build_python_can_virtual_direct_client_and_server(
+    server: MockEcuServer,
+    *,
+    channel: str = "hotpatch-uds",
+) -> LivePythonCanScenario:
+    """建立 direct python-can virtual backend。"""
+    runtime = build_python_can_runtime(
+        interface="virtual",
+        channel=channel,
+        client_name="tester",
+        client_txid=0x7E0,
+        client_rxid=0x7E8,
+        server_name="ecu",
+        server_txid=0x7E8,
+        server_rxid=0x7E0,
+        server_handler=server.handle_payload,
+    )
+    runtime.start()
+    return LivePythonCanScenario(
+        client=UdsClient(connection=runtime.connection, server_handler=server.handle_payload),
+        runtime=runtime,
+    )
+
+
+def build_python_can_virtual_gateway_routed_client_and_server(
+    server: MockEcuServer,
+    *,
+    channel: str = "hotpatch-uds",
+    gateway_mode: str = GATEWAY_MODE_MISCONFIGURED,
+) -> LivePythonCanScenario:
+    """建立 gateway-routed python-can virtual backend。"""
+    route = GatewayRoute()
+    runtime = build_python_can_runtime(
+        interface="virtual",
+        channel=channel,
+        client_name="tester",
+        client_txid=route.external_request_id,
+        client_rxid=route.external_response_id,
+        server_name="ecu",
+        server_txid=route.internal_response_id,
+        server_rxid=route.internal_request_id,
+        server_handler=server.handle_payload,
+        gateway_route=route,
+        gateway_mode=gateway_mode,
+    )
+    runtime.start()
+    return LivePythonCanScenario(
+        client=UdsClient(connection=runtime.connection, server_handler=server.handle_payload),
+        runtime=runtime,
+    )
+
+
+def build_python_can_socketcan_direct_client_and_server(
+    server: MockEcuServer,
+    *,
+    interface: str = "vcan0",
+) -> LivePythonCanScenario:
+    """建立 direct python-can socketcan backend。"""
+    runtime = build_python_can_runtime(
+        interface="socketcan",
+        channel=interface,
+        client_name="tester",
+        client_txid=0x7E0,
+        client_rxid=0x7E8,
+        server_name="ecu",
+        server_txid=0x7E8,
+        server_rxid=0x7E0,
+        server_handler=server.handle_payload,
+    )
+    runtime.start()
+    return LivePythonCanScenario(
+        client=UdsClient(connection=runtime.connection, server_handler=server.handle_payload),
+        runtime=runtime,
+    )
+
+
+def build_python_can_socketcan_gateway_routed_client_and_server(
+    server: MockEcuServer,
+    *,
+    interface: str = "vcan0",
+    gateway_mode: str = GATEWAY_MODE_MISCONFIGURED,
+) -> LivePythonCanScenario:
+    """建立 gateway-routed python-can socketcan backend。"""
+    route = GatewayRoute()
+    runtime = build_python_can_runtime(
+        interface="socketcan",
+        channel=interface,
+        client_name="tester",
+        client_txid=route.external_request_id,
+        client_rxid=route.external_response_id,
+        server_name="ecu",
+        server_txid=route.internal_response_id,
+        server_rxid=route.internal_request_id,
+        server_handler=server.handle_payload,
+        gateway_route=route,
+        gateway_mode=gateway_mode,
+    )
+    runtime.start()
+    return LivePythonCanScenario(
+        client=UdsClient(connection=runtime.connection, server_handler=server.handle_payload),
+        runtime=runtime,
+    )
+
+
+def build_client_and_server_for_backend(
+    server: MockEcuServer,
+    *,
+    backend_name: str,
+    gateway_mode: str = GATEWAY_MODE_MISCONFIGURED,
+    virtual_channel: str = "hotpatch-uds",
+    socketcan_interface: str = "vcan0",
+):
+    """按 backend 名称构造场景。"""
+    config = backend_config_by_name(
+        backend_name,
+        virtual_channel=virtual_channel,
+        socketcan_channel=socketcan_interface,
+    )
+    if config.name == BACKEND_IN_MEMORY:
+        return build_gateway_routed_client_and_server(server, gateway_mode=gateway_mode)
+    if config.name == BACKEND_PYTHON_CAN_VIRTUAL:
+        return build_python_can_virtual_gateway_routed_client_and_server(
+            server,
+            channel=virtual_channel,
+            gateway_mode=gateway_mode,
+        )
+    if config.name == BACKEND_PYTHON_CAN_SOCKETCAN:
+        return build_python_can_socketcan_gateway_routed_client_and_server(
+            server,
+            interface=socketcan_interface,
+            gateway_mode=gateway_mode,
+        )
+    raise ValueError(f"Unsupported backend name: {backend_name}")
+
+
+def build_socketcan_direct_client_and_server(
+    server: MockEcuServer,
+    *,
+    interface: str = "vcan0",
+) -> LiveSocketCanScenario:
+    """建立直接跑在 SocketCAN/vcan 上的 tester 与 ECU 通道。"""
+    client_endpoint = EndpointConfig(
+        name="tester",
+        tx_arbitration_id=0x7E0,
+        rx_arbitration_id=0x7E8,
+    )
+    server_endpoint = EndpointConfig(
+        name="ecu",
+        tx_arbitration_id=0x7E8,
+        rx_arbitration_id=0x7E0,
+    )
+    runtime = SocketCanRuntime(
+        connection=SocketCanIsoTpConnection(
+            interface=interface,
+            client=client_endpoint,
+            server=server_endpoint,
+        ),
+        server=SocketCanUdsServer(
+            interface=interface,
+            endpoint=server_endpoint,
+            server_handler=server.handle_payload,
+        ),
+    )
+    runtime.start()
+    return LiveSocketCanScenario(
+        client=UdsClient(connection=runtime.connection, server_handler=server.handle_payload),
+        runtime=runtime,
+    )
+
+
+def build_socketcan_gateway_routed_client_and_server(
+    server: MockEcuServer,
+    *,
+    interface: str = "vcan0",
+    gateway_mode: str = GATEWAY_MODE_MISCONFIGURED,
+) -> LiveSocketCanScenario:
+    """建立 tester -> gateway -> ECU 的 SocketCAN/vcan 运行时。"""
+    route = GatewayRoute()
+    gateway_runtime = SocketCanGatewayRuntime(
+        interface=interface,
+        route=route,
+        mode=gateway_mode,
+    )
+    client_endpoint = EndpointConfig(
+        name="tester",
+        tx_arbitration_id=route.external_request_id,
+        rx_arbitration_id=route.external_response_id,
+    )
+    server_endpoint = EndpointConfig(
+        name="ecu",
+        tx_arbitration_id=route.internal_response_id,
+        rx_arbitration_id=route.internal_request_id,
+    )
+    runtime = SocketCanRuntime(
+        connection=SocketCanIsoTpConnection(
+            interface=interface,
+            client=client_endpoint,
+            server=server_endpoint,
+            gateway=gateway_runtime,
+        ),
+        server=SocketCanUdsServer(
+            interface=interface,
+            endpoint=server_endpoint,
+            server_handler=server.handle_payload,
+        ),
+        gateway=gateway_runtime,
+    )
+    runtime.start()
+    return LiveSocketCanScenario(
+        client=UdsClient(connection=runtime.connection, server_handler=server.handle_payload),
+        runtime=runtime,
+    )
 
 
 def derive_key_from_seed(seed_response: UDSResponse) -> bytes:

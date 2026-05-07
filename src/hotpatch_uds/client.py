@@ -23,7 +23,7 @@ from .protocol import (
     UDSRequest,
     UDSResponse,
 )
-from .transport import ExchangeResult, InMemoryIsoTpConnection
+from .transport import ExchangeResult, UdsTransportConnection
 
 
 @dataclass
@@ -37,7 +37,7 @@ class ClientCallResult:
 class UdsClient:
     """用于软件仿真的最小 client"""
 
-    def __init__(self, connection: InMemoryIsoTpConnection, server_handler) -> None:
+    def __init__(self, connection: UdsTransportConnection, server_handler) -> None:
         self.connection = connection
         self.server_handler = server_handler
 

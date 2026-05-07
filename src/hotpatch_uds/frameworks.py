@@ -12,6 +12,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from importlib import metadata
 from importlib.util import find_spec
+from pathlib import Path
+import socket
 
 
 @dataclass(frozen=True)
@@ -25,6 +27,16 @@ class FrameworkStatus:
     installed: bool
     version: str | None
     integration_priority: int
+
+
+@dataclass(frozen=True)
+class SocketCanStatus:
+    """SocketCAN / vcan 环境状态。"""
+
+    interface_name: str
+    python_socketcan_supported: bool
+    interface_exists: bool
+    interface_type_hint: str
 
 
 def probe_python_frameworks() -> tuple[FrameworkStatus, ...]:
@@ -102,3 +114,38 @@ def framework_readiness_summary(statuses: tuple[FrameworkStatus, ...] | None = N
     if not missing:
         return "python-can / can-isotp / udsoncan are available for vcan preparation"
     return f"frameworks still missing: {', '.join(missing)}"
+
+
+def probe_socketcan_status(interface_name: str = "vcan0") -> SocketCanStatus:
+    """检查标准库 SocketCAN 能力和目标接口是否存在。"""
+    interface_path = Path("/sys/class/net", interface_name)
+    interface_type_hint = "missing"
+    if interface_path.exists():
+        type_file = interface_path / "type"
+        if type_file.exists():
+            type_value = type_file.read_text(encoding="utf-8").strip()
+            interface_type_hint = "can-like" if type_value == "280" else type_value
+        else:
+            interface_type_hint = "present"
+
+    return SocketCanStatus(
+        interface_name=interface_name,
+        python_socketcan_supported=hasattr(socket, "AF_CAN") and hasattr(socket, "CAN_RAW"),
+        interface_exists=interface_path.exists(),
+        interface_type_hint=interface_type_hint,
+    )
+
+
+def format_socketcan_status_lines(interface_name: str = "vcan0") -> list[str]:
+    """把 SocketCAN/vcan 状态格式化成命令行可读文本。"""
+    status = probe_socketcan_status(interface_name)
+    return [
+        (
+            f"socketcan-python: {'available' if status.python_socketcan_supported else 'missing'} "
+            f"interface={status.interface_name}"
+        ),
+        (
+            f"socketcan-interface: {'present' if status.interface_exists else 'missing'} "
+            f"type={status.interface_type_hint}"
+        ),
+    ]

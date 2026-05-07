@@ -9,6 +9,7 @@ from src.hotpatch_uds.differential import (
     differential_detail_csv,
     differential_markdown_report,
     differential_summary_csv,
+    default_local_backends,
     default_differential_cases,
     run_default_differential_suite,
 )
@@ -25,7 +26,10 @@ class DifferentialTests(unittest.TestCase):
         authorized_case = next(
             case for case in default_differential_cases() if case.name == "authorized_write"
         )
-        comparison = compare_case_across_backends(authorized_case)
+        comparison = compare_case_across_backends(
+            authorized_case,
+            backends=default_local_backends(),
+        )
 
         self.assertTrue(comparison.matched)
         self.assertEqual(len(comparison.observations), 2)

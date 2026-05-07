@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Protocol
 
 from .bus import BusEvent, InMemoryCanBus
 from .gateway import RoutedDiagnosticGateway
@@ -31,6 +32,13 @@ class ExchangeResult:
     request_payload: bytes
     response_payload: bytes
     trace: list[BusEvent] = field(default_factory=list)
+
+
+class UdsTransportConnection(Protocol):
+    """供 UdsClient 使用的最小 transport 接口。"""
+
+    def request(self, request_payload: bytes, server_handler=None) -> ExchangeResult:
+        ...
 
 
 class InMemoryIsoTpConnection:

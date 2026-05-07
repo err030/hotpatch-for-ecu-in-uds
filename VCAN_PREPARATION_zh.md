@@ -9,17 +9,31 @@
 
 ## 当前状态
 
-当前仓库还没有真正接 `vcan0`，也没有真正使用：
+当前仓库已经新增一个不依赖第三方框架的 `SocketCAN / vcan0` backend：
 
-- `python-can`
-- `can-isotp`
-- `udsoncan`
+- `src/hotpatch_uds/socketcan.py`
+- `build_socketcan_direct_client_and_server(...)`
+- `build_socketcan_gateway_routed_client_and_server(...)`
+
+它直接使用 Python 标准库 `socket.AF_CAN`，因此当前就可以把现有 mock ECU /
+gateway 挂到 Linux `vcan0`。
+
+当前仓库仍然还没有真正使用：
+
+- `python-can / can-isotp / udsoncan` 的已安装环境
 
 当前仍然使用：
 
-- `InMemoryCanBus`
+- `InMemoryCanBus` 作为默认 backend
 - 本地 `IsoTpSender / IsoTpReassembler`
 - 本地 `UdsClient`
+
+同时已经新增了第三层可选接入路径：
+
+- `build_python_can_virtual_direct_client_and_server(...)`
+- `build_python_can_virtual_gateway_routed_client_and_server(...)`
+- `build_python_can_socketcan_direct_client_and_server(...)`
+- `build_python_can_socketcan_gateway_routed_client_and_server(...)`
 
 ## 接入后的层次映射
 
@@ -30,19 +44,37 @@
 - `transport.py`
 - `client.py`
 
-后续准备映射成：
+当前新增的中间层映射成：
 
-- `bus.py` -> `python-can`
-- `isotp.py` -> `can-isotp` 或 Linux ISO-TP socket
-- `client.py` -> `udsoncan.Client`
-- `transport.py` -> 更薄的 glue layer
+- `socketcan.py` -> Linux `AF_CAN / CAN_RAW`
+- `isotp.py` -> 当前本地 ISO-TP 分帧/重组
+- `client.py` -> 当前本地 `UdsClient`
+
+现在的第三方协议栈映射成：
+
+- `pythoncan.py` -> `python-can`
+- `pythoncan.py` -> `can-isotp`
+- `pythoncan.py` -> `udsoncan` connection
+- `transport.py` -> 当前统一 request/response 抽象
 
 ## 接入后的逻辑结构
 
-目标结构会变成：
+当前可运行结构已经可以是：
 
 ```text
-udsoncan.Client
+UdsClient
+    ->
+SocketCanIsoTpConnection
+    ->
+Linux AF_CAN raw socket
+    ->
+vcan0
+```
+
+后续目标结构再进一步变成：
+
+```text
+UdsClient / future udsoncan.Client
     ->
 IsoTP connection
     ->
@@ -73,7 +105,17 @@ vcan0
 
 ## 建议的下一步
 
-当你准备真正接 `vcan` 时，最稳的顺序是：
+如果你要在 Ubuntu 虚拟机里实际跑起来，当前最直接的命令是：
+
+```bash
+sudo modprobe vcan
+sudo ip link add dev vcan0 type vcan
+sudo ip link set up vcan0
+python3 -m pip install python-can can-isotp udsoncan
+python3 -m unittest tests.test_socketcan tests.test_pythoncan -v
+```
+
+当你准备继续把外部框架接进来时，最稳的顺序是：
 
 1. 安装 `python-can`
 2. 安装 `can-isotp`
@@ -86,6 +128,6 @@ vcan0
 因为 thesis 当前更重要的是：
 
 - 把攻击链、状态机、patch 行为、fleet 比较和 timing model 先做扎实
-- 然后再把 transport 层替换成更真实的实现
+- 然后再把 transport 层逐步替换成 `python-can / can-isotp / udsoncan`
 
 这样范围更可控，论文结构也更稳。

@@ -19,7 +19,7 @@
 
 ### 1. 完整的 UDS-over-CAN 软件实验环境
 
-状态：`部分完成`
+状态：`已完成`
 
 当前已有：
 - UDS request/response
@@ -28,12 +28,11 @@
 - target ECU mock
 - gateway 模拟节点
 - `tester -> gateway -> target ECU` 路径
-
-当前还缺：
-- 真实 `vcan + SocketCAN`
-- `python-can`
-- `can-isotp`
-- `udsoncan`
+- 原生 `SocketCAN / vcan0` backend
+- `vcan0` 上的后台 ECU / gateway runtime
+- `python-can virtual` backend
+- `python-can socketcan` backend
+- `python-can + can-isotp + udsoncan` 可选接入路径
 
 ### 2. 有状态的 ECU
 
@@ -73,7 +72,7 @@
 
 ### 5. hotpatch 行为模拟
 
-状态：`部分完成`
+状态：`已完成`
 
 当前已有：
 - `vulnerable`
@@ -82,10 +81,9 @@
 - `patch_activating`
 - `patch_failed`
 - patch rollback 行为、测试和演示脚本
-
-当前还缺：
-- patch rollback decision 策略
-- 更像实验数据的 time-to-protection 统计
+- Kintsugi 风格 `quarantine / slot / validation / scheduling / guard-applicator`
+- hotpatch 资源统计
+- hotpatch 生命周期测试
 
 ### 6. UDS 状态机建模
 
@@ -124,19 +122,20 @@
 
 ### 8. 差分测试
 
-状态：`部分完成`
+状态：`已完成`
 
 当前已有：
 - `direct backend`
 - `gateway-routed backend`
   两种实现路径的一致性差分测试
+- 可选 `python-can virtual` backend 差分入口
+- 可选 `python-can socketcan` backend 差分入口
 - 差分测试框架和 case corpus
 - 差分测试摘要 CSV
 - 差分测试细节 CSV
 - 差分测试 Markdown 导出
 
 当前还缺：
-- `udsoncan`
 - `iso14229`
 - `uds-c`
   这些外部实现接入后的跨框架差分比较
@@ -164,6 +163,8 @@
 - patch activation delay
 - patch rollback delay
 - vulnerable vs patched timing 比较表
+- Kintsugi 风格 manager / guard / applicator 软件级时间统计
+- software-level 资源 / 实时性 / 抵挡率综合评估
 
 ## 本轮新增的关键内容
 
@@ -178,10 +179,14 @@
 - 新增了 timing model
 - 新增了 Mermaid 图表与 CSV 导出
 - 新增了 framework probe、差分测试框架和系统化 fuzzing corpus
+- 新增了三层 backend 矩阵
+- 新增了 `python-can + can-isotp + udsoncan` 可选 runtime
+- 新增了 Kintsugi 风格 hotpatch manager 模型
+- 新增了 exposure window / resource / realtime / attack blocking rate 评估
 
 ## 建议的下一步优先级
 
-1. 先安装并接入 `python-can / can-isotp / udsoncan`
-2. 再把外部实现接入差分测试框架
-3. 然后接真实 `vcan + SocketCAN`
-4. 最后再考虑 `iso14229 / uds-c`
+1. 在本机安装 `python-can / can-isotp / udsoncan` 并实际跑通 `tests/test_pythoncan.py`
+2. 在 `vcan0` 上跑通 `python-can socketcan` 路径
+3. 把外部实现继续扩到 `iso14229 / uds-c` 差分比较
+4. 最后再把 software-level 结论推进到真实硬件和 RTOS 上

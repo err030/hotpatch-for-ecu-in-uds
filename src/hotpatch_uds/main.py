@@ -8,6 +8,8 @@
 
 from __future__ import annotations
 
+from .backends import format_backend_matrix_lines
+from .evaluation import format_hotpatch_evaluation_lines
 from .scenarios import (
     build_reference_servers,
     run_failed_key_state_retention_attack,
@@ -20,7 +22,11 @@ from .scenarios import (
     run_session_change_state_retention_attack,
 )
 from .fleet import format_fleet_result, run_default_fleet_comparison
-from .frameworks import format_framework_status_lines, framework_readiness_summary
+from .frameworks import (
+    format_framework_status_lines,
+    format_socketcan_status_lines,
+    framework_readiness_summary,
+)
 from .differential import format_differential_comparison, run_default_differential_suite
 from .timing import format_timing_summary, run_default_timing_comparison
 
@@ -34,7 +40,10 @@ def print_block(title: str, lines: list[str]) -> None:
 def main() -> None:
     print_block(
         "Framework probe",
-        format_framework_status_lines() + [framework_readiness_summary()],
+        format_framework_status_lines()
+        + format_socketcan_status_lines()
+        + format_backend_matrix_lines()
+        + [framework_readiness_summary()],
     )
 
     vulnerable_server, patched_server = build_reference_servers()
@@ -101,6 +110,11 @@ def main() -> None:
             f"Differential test: {comparison.case_name}",
             format_differential_comparison(comparison),
         )
+
+    print_block(
+        "Hotpatch evaluation",
+        format_hotpatch_evaluation_lines(),
+    )
 
 
 if __name__ == "__main__":

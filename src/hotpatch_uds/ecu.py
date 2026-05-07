@@ -211,6 +211,22 @@ class BaseECU:
             "security_phase": self.state.security_phase(),
         }
 
+    def vulnerability_flags(self) -> tuple[str, ...]:
+        """返回当前仍存在的授权路径缺陷。"""
+        flags: list[str] = []
+        if not self.write_requires_unlock:
+            flags.append("write_without_unlock")
+        if not self.clear_unlock_on_failed_key:
+            flags.append("sticky_unlock_after_failed_key")
+        if not self.clear_unlock_on_session_change:
+            flags.append("sticky_unlock_after_session_change")
+        if self.allow_replay_without_unlock:
+            flags.append("replay_authorized_write")
+        return tuple(flags)
+
+    def vulnerability_count(self) -> int:
+        return len(self.vulnerability_flags())
+
     def is_fully_patched(self) -> bool:
         return (
             self.write_requires_unlock
