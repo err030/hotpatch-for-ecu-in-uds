@@ -1,20 +1,28 @@
 """命令行入口。
 
-- 运行这个文件后，可以看到 software-only simulation 的四个核心结果：
-  1. vulnerable ECU 未解锁也能写
-  2. patched ECU 未解锁会被拒绝
-  3. patched ECU 解锁后可以写
-  4. runtime patch 会改变同一条写路径的行为
+- 运行这个文件后，可以看到 thesis 当前最核心的几组结果：
+  1. gateway-routed UDS 下的基础攻击链
+  2. 未授权写、错误 key、session 切换、重放等漏洞场景
+  3. runtime patch 前后的行为变化
 """
 
 from __future__ import annotations
 
 from .scenarios import (
     build_reference_servers,
+    run_failed_key_state_retention_attack,
     run_attack_with_unlock,
     run_attack_without_unlock,
+    run_patch_failure_demo,
+    run_patch_rollback_demo,
+    run_replay_attack,
     run_runtime_patch_demo,
+    run_session_change_state_retention_attack,
 )
+from .fleet import format_fleet_result, run_default_fleet_comparison
+from .frameworks import format_framework_status_lines, framework_readiness_summary
+from .differential import format_differential_comparison, run_default_differential_suite
+from .timing import format_timing_summary, run_default_timing_comparison
 
 
 def print_block(title: str, lines: list[str]) -> None:
@@ -24,6 +32,11 @@ def print_block(title: str, lines: list[str]) -> None:
 
 
 def main() -> None:
+    print_block(
+        "Framework probe",
+        format_framework_status_lines() + [framework_readiness_summary()],
+    )
+
     vulnerable_server, patched_server = build_reference_servers()
 
     print_block(
@@ -42,6 +55,52 @@ def main() -> None:
         "Patchable ECU: runtime patch demo",
         run_runtime_patch_demo(),
     )
+    print_block(
+        "Patchable ECU: failed patch demo",
+        run_patch_failure_demo(),
+    )
+    print_block(
+        "Patchable ECU: rollback demo",
+        run_patch_rollback_demo(),
+    )
+    print_block(
+        "Sticky unlock after failed key",
+        run_failed_key_state_retention_attack(),
+    )
+    print_block(
+        "Sticky unlock after session change",
+        run_session_change_state_retention_attack(),
+    )
+    print_block(
+        "Replay old write after session re-entry",
+        run_replay_attack(),
+    )
+
+    ota_only_result, hotpatch_first_result = run_default_fleet_comparison(fleet_size=20)
+    print_block(
+        "Fleet strategy: OTA only",
+        format_fleet_result(ota_only_result),
+    )
+    print_block(
+        "Fleet strategy: hotpatch first then OTA",
+        format_fleet_result(hotpatch_first_result),
+    )
+
+    vulnerable_timing, patched_timing = run_default_timing_comparison()
+    print_block(
+        "Timing model: vulnerable",
+        format_timing_summary("vulnerable", vulnerable_timing),
+    )
+    print_block(
+        "Timing model: patched",
+        format_timing_summary("patched", patched_timing),
+    )
+
+    for comparison in run_default_differential_suite():
+        print_block(
+            f"Differential test: {comparison.case_name}",
+            format_differential_comparison(comparison),
+        )
 
 
 if __name__ == "__main__":

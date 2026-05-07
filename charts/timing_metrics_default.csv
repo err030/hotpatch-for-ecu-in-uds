@@ -1,0 +1,6 @@
+metric,vulnerable,patched
+total_attack_chain_latency_ms,3.35,3.50
+write_handler_latency_ms,0.90,1.05
+periodic_task_jitter_ms,0.225,0.263
+patch_activation_total_delay_ms,5.5,5.5
+patch_rollback_delay_ms,1.2,1.2

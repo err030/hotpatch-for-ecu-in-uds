@@ -1,10 +1,10 @@
-"""中文说明：
+"""
 - 这个测试文件验证简化 ISO-TP 分帧和重组逻辑。
 """
 
 import unittest
 
-from src.hotpatch_uds_sim.isotp import IsoTpReassembler, IsoTpSender
+from src.hotpatch_uds.isotp import IsoTpReassembler, IsoTpSender
 
 
 class IsoTpTests(unittest.TestCase):

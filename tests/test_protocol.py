@@ -1,10 +1,10 @@
-"""中文说明：
+"""
 - 这个测试文件验证 UDS 报文编解码是否正确。
 """
 
 import unittest
 
-from src.hotpatch_uds_sim.protocol import (
+from src.hotpatch_uds.protocol import (
     NEGATIVE_RESPONSE_SID,
     SID_DIAGNOSTIC_SESSION_CONTROL,
     SID_WRITE_DATA_BY_IDENTIFIER,

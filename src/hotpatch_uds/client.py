@@ -15,6 +15,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .protocol import (
+    SESSION_DEFAULT,
     SESSION_EXTENDED,
     SID_DIAGNOSTIC_SESSION_CONTROL,
     SID_SECURITY_ACCESS,
@@ -51,6 +52,14 @@ class UdsClient:
             UDSRequest(
                 sid=SID_DIAGNOSTIC_SESSION_CONTROL,
                 subfunction=SESSION_EXTENDED,
+            )
+        )
+
+    def change_to_default_session(self) -> ClientCallResult:
+        return self.raw_request(
+            UDSRequest(
+                sid=SID_DIAGNOSTIC_SESSION_CONTROL,
+                subfunction=SESSION_DEFAULT,
             )
         )
 
