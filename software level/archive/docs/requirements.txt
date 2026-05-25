@@ -1,0 +1,11 @@
+# 中文说明：
+# 当前这版 software-only simulation 只依赖 Python 标准库。
+# 如果要启用三层 backend 里的 `python-can virtual` 或
+# `python-can socketcan/vcan0`，再加入下面这些依赖：
+#
+# python-can
+# can-isotp
+# udsoncan
+#
+# 如果要重新生成 `charts/*.png` 图表，还需要：
+# Pillow
