@@ -1,0 +1,655 @@
+diff --git a/arch/arm/core/cortex_m/fault.c b/arch/arm/core/cortex_m/fault.c
+index 4cc01f87129..e46e47f4ba9 100644
+--- a/arch/arm/core/cortex_m/fault.c
++++ b/arch/arm/core/cortex_m/fault.c
+@@ -743,6 +743,12 @@ static inline bool z_arm_is_pc_valid(uintptr_t pc)
+ 		return true;
+ 	}
+ 
++#if defined(CONFIG_HOTPATCH)
++	if ((((uintptr_t)&__hotpatch_code_start) <= pc) && (pc < ((uintptr_t)&__hotpatch_code_end))) {
++		return true;
++	}
++#endif
++
+ #if DT_NODE_HAS_STATUS(DT_CHOSEN(zephyr_itcm), okay)
+ 	/* Is it in the ITCM */
+ 	if ((((uintptr_t)&__itcm_start) <= pc) && (pc < ((uintptr_t)&__itcm_end))) {
+diff --git a/arch/arm/core/cortex_m/swap.c b/arch/arm/core/cortex_m/swap.c
+index 027fb47a01f..993bf8068b0 100644
+--- a/arch/arm/core/cortex_m/swap.c
++++ b/arch/arm/core/cortex_m/swap.c
+@@ -58,6 +58,8 @@ uintptr_t z_arm_pendsv_c(uintptr_t exc_ret)
+ 	/* Protect the kernel state while we play with the thread lists */
+ 	uint32_t basepri = arch_irq_lock();
+ 
++	struct k_thread *previous = _kernel.cpus[0].current;
++
+ 	/* fetch the thread to run from the ready queue cache */
+ 	struct k_thread *current = _kernel.cpus[0].current = _kernel.ready_q.cache;
+ 
+@@ -94,6 +96,10 @@ uintptr_t z_arm_pendsv_c(uintptr_t exc_ret)
+ 	z_arm_configure_dynamic_mpu_regions(current);
+ #endif
+ 
++#ifdef CONFIG_HOTPATCH
++    hp_guard_applicator(current->hp_manager, previous->hp_manager);
++#endif
++
+ 	/* restore mode */
+ 	IF_ENABLED(CONFIG_USERSPACE, ({
+ 			CONTROL_Type ctrl = {.w = __get_CONTROL()};
+diff --git a/arch/arm/core/cortex_m/swap_helper.S b/arch/arm/core/cortex_m/swap_helper.S
+index c2cb3ef7f2f..2e8e2b11591 100644
+--- a/arch/arm/core/cortex_m/swap_helper.S
++++ b/arch/arm/core/cortex_m/swap_helper.S
+@@ -222,7 +222,8 @@ in_fp_endif:
+  * - System Calls (User mode)
+  *
+  */
+-SECTION_FUNC(TEXT, z_arm_svc)
++SECTION_FUNC(ramfunc, z_arm_svc)
++//SECTION_FUNC(TEXT, z_arm_svc)
+   /* Use EXC_RETURN state to find out if stack frame is on the
+    * MSP or PSP
+    */
+@@ -351,6 +352,7 @@ _oops:
+      * r6 - call_id
+      * r8 - saved link register
+      */
++.section .ramfunc
+ _do_syscall:
+ #if defined(CONFIG_ARMV6_M_ARMV8_M_BASELINE)
+     movs r3, #24
+@@ -377,7 +379,8 @@ _do_syscall:
+     /* The supplied syscall_id must be lower than the limit
+      * (Requires unsigned integer comparison)
+      */
+-    blo valid_syscall_id
++     //CVE-2020-10024
++    blt valid_syscall_id
+ 
+     /* bad syscall id.  Set arg1 to bad id and set call_id to SYSCALL_BAD */
+     str r6, [r0]
+diff --git a/arch/arm/core/mpu/arm_core_mpu.c b/arch/arm/core/mpu/arm_core_mpu.c
+index dde98c0b07f..279003c57db 100644
+--- a/arch/arm/core/mpu/arm_core_mpu.c
++++ b/arch/arm/core/mpu/arm_core_mpu.c
+@@ -63,6 +63,14 @@ extern char __ram_text_reloc_size[];
+ #endif
+ 
+ static const struct z_arm_mpu_partition static_regions[] = {
++
++#if defined(CONFIG_HOTPATCH)
++		{
++		.start = (uint32_t)&__hotpatch_code_start,
++		.size  = (uint32_t)&__hotpatch_code_size,
++		.attr  = K_MEM_PARTITION_P_RWX_U_RX,
++		},
++#endif
+ #if defined(CONFIG_COVERAGE_GCOV) && defined(CONFIG_USERSPACE)
+ 		{
+ 		/* GCOV code coverage accounting area. Needs User permissions
+@@ -201,6 +209,8 @@ void z_arm_configure_dynamic_mpu_regions(struct k_thread *thread)
+ 	 * thread->stack_info.start. On a K_USER thread, the guard is defined
+ 	 * in front of the privilege mode stack, thread->arch.priv_stack_start.
+ 	 */
++
++
+ 	static struct z_arm_mpu_partition
+ 			dynamic_regions[_MAX_DYNAMIC_MPU_REGIONS_NUM];
+ 
+@@ -218,7 +228,6 @@ void z_arm_configure_dynamic_mpu_regions(struct k_thread *thread)
+ 		int i;
+ 
+ 		LOG_DBG("configure domain: %p", mem_domain);
+-
+ 		for (i = 0; i < CONFIG_MAX_DOMAIN_PARTITIONS; i++) {
+ 			partition = &mem_domain->partitions[i];
+ 			if (partition->size == 0) {
+@@ -317,9 +326,17 @@ void z_arm_configure_dynamic_mpu_regions(struct k_thread *thread)
+ #endif
+ 	arm_core_mpu_configure_dynamic_mpu_regions(dynamic_regions,
+ 						   region_num);
++
++/*
++#ifdef CONFIG_HOTPATCH
++	hp_guard_init();
++#endif
++*/
++
+ #ifdef CONFIG_AARCH32_ARMV8_R
+ 	arm_core_mpu_enable();
+ #endif
++
+ }
+ 
+ #if defined(CONFIG_USERSPACE)
+diff --git a/arch/common/ramfunc.ld b/arch/common/ramfunc.ld
+index 3894dbfef43..0ba8f695161 100644
+--- a/arch/common/ramfunc.ld
++++ b/arch/common/ramfunc.ld
+@@ -9,15 +9,17 @@
+ 
+ SECTION_DATA_PROLOGUE(.ramfunc,,)
+ {
+-	MPU_ALIGN(__ramfunc_size);
+-	__ramfunc_start = .;
+-	*(.ramfunc)
+-	*(".ramfunc.*")
++    MPU_ALIGN(__ramfunc_size);
++    __ramfunc_start = .;
++
++    KEEP(*(.ramfunc))
++    KEEP(*(".ramfunc.*"))
+ 
+ #include <snippets-ramfunc-section.ld>
+ 
+-	MPU_ALIGN(__ramfunc_size);
+-	__ramfunc_end = .;
++    MPU_ALIGN(__ramfunc_size);
++    __ramfunc_end = .;
+ } GROUP_DATA_LINK_IN(RAMABLE_REGION, ROMABLE_REGION)
++
+ __ramfunc_size = __ramfunc_end - __ramfunc_start;
+-__ramfunc_load_start = LOADADDR(.ramfunc);
++__ramfunc_load_start = LOADADDR(.ramfunc);
+\ No newline at end of file
+diff --git a/cmake/modules/extensions.cmake b/cmake/modules/extensions.cmake
+index d91295325cd..214404e9829 100644
+--- a/cmake/modules/extensions.cmake
++++ b/cmake/modules/extensions.cmake
+@@ -1932,12 +1932,25 @@ endfunction()
+ # ifdef functions are added on an as-need basis. See
+ # https://cmake.org/cmake/help/latest/manual/cmake-commands.7.html for
+ # a list of available functions.
+-function(add_subdirectory_ifdef feature_toggle source_dir)
++function(add_subdirectory_ifdef feature_toggle directory_path)
++  set(directory_args ${ARGN})
+   if(${${feature_toggle}})
+-    add_subdirectory(${source_dir} ${ARGN})
++    list(LENGTH ARGN directory_args_num)
++    if(directory_args_num GREATER 0)
++      list(GET directory_args 0 directory)
++      add_subdirectory(${directory_path} ${directory})
++    else()
++      add_subdirectory(${directory_path})
++    endif()
+   endif()
+ endfunction()
+ 
++function(include_directories_ifdef feature_toggle directory_path)
++  if(${${feature_toggle}})
++    include_directories(${directory_path})
++  endif()
++endfunction(())
++
+ function(target_sources_ifdef feature_toggle target scope item)
+   if(${${feature_toggle}})
+     target_sources(${target} ${scope} ${item} ${ARGN})
+diff --git a/drivers/CMakeLists.txt b/drivers/CMakeLists.txt
+index 0f645e98520..72e74d0f35e 100644
+--- a/drivers/CMakeLists.txt
++++ b/drivers/CMakeLists.txt
+@@ -92,3 +92,6 @@ add_subdirectory_ifdef(CONFIG_WATCHDOG watchdog)
+ add_subdirectory_ifdef(CONFIG_WIFI wifi)
+ add_subdirectory_ifdef(CONFIG_XEN xen)
+ # zephyr-keep-sorted-stop
++
++
++add_subdirectory_ifdef(CONFIG_HOTPATCH ${ZEPHYR_BASE}/../../../../../kintsugi kintsugi)
+\ No newline at end of file
+diff --git a/drivers/Kconfig b/drivers/Kconfig
+index a11ede616da..b48396efc30 100644
+--- a/drivers/Kconfig
++++ b/drivers/Kconfig
+@@ -94,4 +94,6 @@ source "drivers/xen/Kconfig"
+ 
+ source "drivers/tee/Kconfig"
+ 
++source "$srctree/../../../../../kintsugi/Kconfig"
++
+ endmenu
+diff --git a/drivers/gpio/gpio_handlers.c b/drivers/gpio/gpio_handlers.c
+index 405b54afeb3..697f793dc7f 100644
+--- a/drivers/gpio/gpio_handlers.c
++++ b/drivers/gpio/gpio_handlers.c
+@@ -11,7 +11,7 @@ static inline int z_vrfy_gpio_pin_configure(const struct device *port,
+ 					    gpio_pin_t pin,
+ 					    gpio_flags_t flags)
+ {
+-	K_OOPS(K_SYSCALL_DRIVER_GPIO(port, pin_configure));
++	//K_OOPS(K_SYSCALL_DRIVER_GPIO(port, pin_configure));
+ 	return z_impl_gpio_pin_configure((const struct device *)port,
+ 					  pin,
+ 					  flags);
+diff --git a/include/zephyr/kernel/thread.h b/include/zephyr/kernel/thread.h
+index fd8e4c02f23..6ed4e1d4a2a 100644
+--- a/include/zephyr/kernel/thread.h
++++ b/include/zephyr/kernel/thread.h
+@@ -269,6 +269,10 @@ struct k_thread {
+ 	/** threads waiting in k_thread_join() */
+ 	_wait_q_t join_queue;
+ 
++#ifdef CONFIG_HOTPATCH
++	uint32_t  hp_manager;
++#endif
++
+ #if defined(CONFIG_POLL)
+ 	struct z_poller poller;
+ #endif /* CONFIG_POLL */
+diff --git a/include/zephyr/linker/linker-defs.h b/include/zephyr/linker/linker-defs.h
+index d860222ffac..5781f734dbe 100644
+--- a/include/zephyr/linker/linker-defs.h
++++ b/include/zephyr/linker/linker-defs.h
+@@ -236,6 +236,33 @@ extern char __ramfunc_size[];
+ extern char __ramfunc_load_start[];
+ #endif /* CONFIG_ARCH_HAS_RAMFUNC_SUPPORT */
+ 
++
++#ifdef CONFIG_HOTPATCH
++extern const char __hotpatch_slots_quarantine_start[];
++extern const char __hotpatch_slots_quarantine_end[];
++extern const char __hotpatch_slots_quarantine_size[];
++extern const char __hotpatch_slots_quarantine_load_start[];
++
++extern const char __hotpatch_slots_start[];
++extern const char __hotpatch_slots_end[];
++extern const char __hotpatch_slots_size[];
++extern const char __hotpatch_slots_load_start[];
++
++extern const char __hotpatch_code_start[];
++extern const char __hotpatch_code_end[];
++extern const char __hotpatch_code_size[];
++extern const char __hotpatch_code_load_start[];
++
++extern const char __hotpatch_hp_start[];
++extern const char __hotpatch_hp_end[];
++extern const char __hotpatch_hp_size[];
++
++extern const char __hotpatch_context_start[];
++extern const char __hotpatch_context_end[];
++extern const char __hotpatch_context_size[];
++extern const char __hotpatch_context_load_start[];
++#endif
++
+ /* Memory owned by the kernel. Memory region for thread privilege stack buffers,
+  * currently only applicable on ARM Cortex-M architecture when building with
+  * support for User Mode.
+diff --git a/kernel/init.c b/kernel/init.c
+index 8b7d62b8671..fb758798d7b 100644
+--- a/kernel/init.c
++++ b/kernel/init.c
+@@ -452,6 +452,10 @@ static void bg_thread_main(void *unused1, void *unused2, void *unused3)
+ 	z_sys_init_run_level(INIT_LEVEL_SMP);
+ #endif /* CONFIG_SMP */
+ 
++#ifdef CONFIG_HOTPATCH
++	hp_manager_init();
++#endif
++
+ #ifdef CONFIG_MMU
+ 	z_mem_manage_boot_finish();
+ #endif /* CONFIG_MMU */
+diff --git a/kernel/thread.c b/kernel/thread.c
+index 25bf9a9e55d..1e2e728accd 100644
+--- a/kernel/thread.c
++++ b/kernel/thread.c
+@@ -648,6 +648,10 @@ char *z_setup_new_thread(struct k_thread *new_thread,
+ 		CONFIG_SCHED_THREAD_USAGE_AUTO_ENABLE;
+ #endif /* CONFIG_SCHED_THREAD_USAGE */
+ 
++#ifdef CONFIG_HOTPATCH
++	new_thread->hp_manager = strcmp(name, "HP_TASK") == 0;
++#endif
++
+ 	SYS_PORT_TRACING_OBJ_FUNC(k_thread, create, new_thread);
+ 
+ 	return stack_ptr;
+diff --git a/kernel/xip.c b/kernel/xip.c
+index a5752560c85..f037a434909 100644
+--- a/kernel/xip.c
++++ b/kernel/xip.c
+@@ -31,6 +31,17 @@ void z_data_copy(void)
+ 	z_early_memcpy(&__ramfunc_start, &__ramfunc_load_start,
+ 		       (uintptr_t) &__ramfunc_size);
+ #endif /* CONFIG_ARCH_HAS_RAMFUNC_SUPPORT */
++#ifdef CONFIG_HOTPATCH
++	z_early_memcpy(&__hotpatch_slots_quarantine_start, &__hotpatch_slots_quarantine_load_start,
++				(uintptr_t) &__hotpatch_slots_quarantine_size);
++
++	z_early_memcpy(&__hotpatch_code_start, &__hotpatch_code_load_start,
++				(uintptr_t) &__hotpatch_code_size);
++
++	z_early_memcpy(&__hotpatch_context_start, &__hotpatch_context_load_start,
++				(uintptr_t) &__hotpatch_context_size);
++#endif
++
+ #if DT_NODE_HAS_STATUS(DT_CHOSEN(zephyr_ccm), okay)
+ 	z_early_memcpy(&__ccm_data_start, &__ccm_data_rom_start,
+ 		       __ccm_data_end - __ccm_data_start);
+diff --git a/samples/bluetooth/periodic_adv/prj.conf b/samples/bluetooth/periodic_adv/prj.conf
+index 0fcc6e0efd5..23986fbfbc9 100644
+--- a/samples/bluetooth/periodic_adv/prj.conf
++++ b/samples/bluetooth/periodic_adv/prj.conf
+@@ -1,3 +1,4 @@
++CONFIG_STDOUT_CONSOLE=y
+ CONFIG_BT=y
+ CONFIG_BT_EXT_ADV=y
+ CONFIG_BT_PER_ADV=y
+diff --git a/scripts/build/gen_syscalls.py b/scripts/build/gen_syscalls.py
+index 84f6b546bde..f120bfde33f 100755
+--- a/scripts/build/gen_syscalls.py
++++ b/scripts/build/gen_syscalls.py
+@@ -332,7 +332,7 @@ def marshall_defs(func_name, func_type, args):
+ 
+     decl_arglist = ", ".join([" ".join(argrec) for argrec in args])
+     mrsh = "extern %s z_vrfy_%s(%s);\n" % (func_type, func_name, decl_arglist)
+-
++    # __ramfunc
+     mrsh += "uintptr_t %s(uintptr_t arg0, uintptr_t arg1, uintptr_t arg2,\n" % mrsh_name
+     if nmrsh <= 6:
+         mrsh += "\t\t" + "uintptr_t arg3, uintptr_t arg4, uintptr_t arg5, void *ssf)\n"
+diff --git a/subsys/bluetooth/host/l2cap.c b/subsys/bluetooth/host/l2cap.c
+index 1b25f838fa3..91e4e1f8666 100644
+--- a/subsys/bluetooth/host/l2cap.c
++++ b/subsys/bluetooth/host/l2cap.c
+@@ -1671,10 +1671,11 @@ static void le_ecred_reconf_req(struct bt_l2cap *l2cap, uint8_t ident,
+ 	}
+ 
+ 	/* The specification only allows up to 5 CIDs in this packet */
+-	if (buf->len > (L2CAP_ECRED_CHAN_MAX_PER_REQ * sizeof(scid))) {
++	// CVE-2023-5055
++	/*if (buf->len > (L2CAP_ECRED_CHAN_MAX_PER_REQ * sizeof(scid))) {
+ 		result = BT_L2CAP_RECONF_OTHER_UNACCEPT;
+ 		goto response;
+-	}
++	}*/
+ 
+ 	while (buf->len >= sizeof(scid)) {
+ 		struct bt_l2cap_chan *chan;
+diff --git a/subsys/bluetooth/host/scan.c b/subsys/bluetooth/host/scan.c
+index 35f09977699..3e86b148571 100644
+--- a/subsys/bluetooth/host/scan.c
++++ b/subsys/bluetooth/host/scan.c
+@@ -636,23 +636,8 @@ void bt_hci_le_adv_ext_report(struct net_buf *buf)
+ 		is_report_complete = data_status == BT_HCI_LE_ADV_EVT_TYPE_DATA_STATUS_COMPLETE;
+ 		more_to_come = data_status == BT_HCI_LE_ADV_EVT_TYPE_DATA_STATUS_PARTIAL;
+ 
+-		if (evt->length > buf->len) {
+-			LOG_WRN("Adv report corrupted (wants %u out of %u)", evt->length, buf->len);
+-
+-			net_buf_reset(buf);
+-
+-			if (evt_type & BT_HCI_LE_ADV_EVT_TYPE_LEGACY) {
+-				return;
+-			}
+-
+-			/* Start discarding irrespective of the `more_to_come` flag. We
+-			 * assume we may have lost a partial adv report in the truncated
+-			 * data.
+-			 */
+-			reassembling_advertiser.state = FRAG_ADV_DISCARDING;
+-
+-			return;
+-		}
++		// CVE-2024-6259
++		// moved code to line 703
+ 
+ 		if (evt_type & BT_HCI_LE_ADV_EVT_TYPE_LEGACY) {
+ 			/* Legacy advertising reports are complete.
+@@ -715,6 +700,21 @@ void bt_hci_le_adv_ext_report(struct net_buf *buf)
+ 			reassembling_advertiser.state = FRAG_ADV_DISCARDING;
+ 		}
+ 
++		// CVE-2024-6259
++		if (evt->length > buf->len) {
++			LOG_WRN("Adv report corrupted (wants %u out of %u)", evt->length, buf->len);
++
++			net_buf_reset(buf);
++
++			/*if (evt_type & BT_HCI_LE_ADV_EVT_TYPE_LEGACY) {
++				return;
++			}*/
++
++			reassembling_advertiser.state = FRAG_ADV_DISCARDING;
++
++			return;
++		}
++
+ 		if (reassembling_advertiser.state == FRAG_ADV_DISCARDING) {
+ 			if (!more_to_come) {
+ 				/* We do no longer need to keep track of this advertiser as
+diff --git a/subsys/net/ip/ipv4.c b/subsys/net/ip/ipv4.c
+index a7d74d74a2f..3c968ad1361 100644
+--- a/subsys/net/ip/ipv4.c
++++ b/subsys/net/ip/ipv4.c
+@@ -232,7 +232,9 @@ int net_ipv4_parse_hdr_options(struct net_pkt *pkt,
+ }
+ #endif
+ 
+-enum net_verdict net_ipv4_input(struct net_pkt *pkt, bool is_loopback)
++
++// CVE-2023-7060
++enum net_verdict net_ipv4_input(struct net_pkt *pkt);//, bool is_loopback)
+ {
+ 	NET_PKT_DATA_ACCESS_CONTIGUOUS_DEFINE(ipv4_access, struct net_ipv4_hdr);
+ 	NET_PKT_DATA_ACCESS_DEFINE(udp_access, struct net_udp_hdr);
+@@ -293,7 +295,8 @@ enum net_verdict net_ipv4_input(struct net_pkt *pkt, bool is_loopback)
+ 		net_pkt_update_length(pkt, pkt_len);
+ 	}
+ 
+-	if (!is_loopback) {
++	// CVE-2023-7060
++	/*if (!is_loopback) {
+ 		if (net_ipv4_is_addr_loopback((struct in_addr *)hdr->dst) ||
+ 		    net_ipv4_is_addr_loopback((struct in_addr *)hdr->src)) {
+ 			NET_DBG("DROP: localhost packet");
+@@ -304,7 +307,7 @@ enum net_verdict net_ipv4_input(struct net_pkt *pkt, bool is_loopback)
+ 			NET_DBG("DROP: src addr is %s", "mine");
+ 			goto drop;
+ 		}
+-	}
++	}*/
+ 
+ 	if (net_ipv4_is_addr_mcast((struct in_addr *)hdr->src)) {
+ 		NET_DBG("DROP: src addr is %s", "mcast");
+diff --git a/subsys/net/ip/net_core.c b/subsys/net/ip/net_core.c
+index 8ab2fb93a3c..c2f132377e2 100644
+--- a/subsys/net/ip/net_core.c
++++ b/subsys/net/ip/net_core.c
+@@ -136,7 +136,7 @@ static inline enum net_verdict process_data(struct net_pkt *pkt,
+ 		if (IS_ENABLED(CONFIG_NET_IPV6) && vtc_vhl == 0x60) {
+ 			return net_ipv6_input(pkt, is_loopback);
+ 		} else if (IS_ENABLED(CONFIG_NET_IPV4) && vtc_vhl == 0x40) {
+-			return net_ipv4_input(pkt, is_loopback);
++			return net_ipv4_input(pkt);//, is_loopback);
+ 		}
+ 
+ 		NET_DBG("Unknown IP family packet (0x%x)", NET_IPV6_HDR(pkt)->vtc & 0xf0);
+diff --git a/subsys/net/ip/net_private.h b/subsys/net/ip/net_private.h
+index cb4c32c3a28..8535a48ae32 100644
+--- a/subsys/net/ip/net_private.h
++++ b/subsys/net/ip/net_private.h
+@@ -141,7 +141,7 @@ static inline void mdns_init_responder(void) { }
+ #endif /* CONFIG_MDNS_RESPONDER */
+ 
+ #if defined(CONFIG_NET_NATIVE)
+-enum net_verdict net_ipv4_input(struct net_pkt *pkt, bool is_loopback);
++enum net_verdict net_ipv4_input(struct net_pkt *pkt); //, bool is_loopback);
+ enum net_verdict net_ipv6_input(struct net_pkt *pkt, bool is_loopback);
+ #else
+ static inline enum net_verdict net_ipv4_input(struct net_pkt *pkt,
+diff --git a/subsys/net/lib/coap/coap.c b/subsys/net/lib/coap/coap.c
+index c557f3c424b..91700ccfc21 100644
+--- a/subsys/net/lib/coap/coap.c
++++ b/subsys/net/lib/coap/coap.c
+@@ -514,7 +514,9 @@ static int decode_delta(uint8_t *data, uint16_t offset, uint16_t *pos, uint16_t
+ 	return ret;
+ }
+ 
+-static int parse_option(uint8_t *data, uint16_t offset, uint16_t *pos,
++static int
++__attribute__((section(".ramfunc")))
++parse_option(uint8_t *data, uint16_t offset, uint16_t *pos,
+ 			uint16_t max_len, uint16_t *opt_delta, uint16_t *opt_len,
+ 			struct coap_option *option)
+ {
+@@ -556,9 +558,10 @@ static int parse_option(uint8_t *data, uint16_t offset, uint16_t *pos,
+ 			return -EINVAL;
+ 		}
+ 
+-		if (u16_add_overflow(*opt_len, hdr_len, opt_len)) {
++		*opt_len += hdr_len;
++		/*if (u16_add_overflow(*opt_len, hdr_len, opt_len)) {
+ 			return -EINVAL;
+-		}
++		}*/
+ 	}
+ 
+ 	if (len > COAP_OPTION_NO_EXT) {
+@@ -568,16 +571,19 @@ static int parse_option(uint8_t *data, uint16_t offset, uint16_t *pos,
+ 		if (r < 0) {
+ 			return -EINVAL;
+ 		}
+-
+-		if (u16_add_overflow(*opt_len, hdr_len, opt_len)) {
++		*opt_len += hdr_len;
++		/*if (u16_add_overflow(*opt_len, hdr_len, opt_len)) {
+ 			return -EINVAL;
+-		}
++		}*/
+ 	}
+ 
+-	if (u16_add_overflow(*opt_delta, delta, opt_delta) ||
++	*opt_delta += delta;
++	*opt_len += len;
++
++	/*if (u16_add_overflow(*opt_delta, delta, opt_delta) ||
+ 	    u16_add_overflow(*opt_len, len, opt_len)) {
+ 		return -EINVAL;
+-	}
++	}*/
+ 
+ 	if (r == 0 && len != 0U) {
+ 		/* r == 0 means no more data to read from fragment, but len
+@@ -608,9 +614,10 @@ static int parse_option(uint8_t *data, uint16_t offset, uint16_t *pos,
+ 			return -EINVAL;
+ 		}
+ 	} else {
+-		if (u16_add_overflow(*pos, len, pos)) {
++		*pos += len;
++		/*if (u16_add_overflow(*pos, len, pos)) {
+ 			return -EINVAL;
+-		}
++		}*/
+ 
+ 		r = max_len - *pos;
+ 	}
+diff --git a/subsys/net/lib/mqtt/mqtt_decoder.c b/subsys/net/lib/mqtt/mqtt_decoder.c
+index 678546b2f11..34e47592f5b 100644
+--- a/subsys/net/lib/mqtt/mqtt_decoder.c
++++ b/subsys/net/lib/mqtt/mqtt_decoder.c
+@@ -165,14 +165,17 @@ static int unpack_data(uint32_t length, struct buf_ctx *buf,
+  * @retval -EINVAL if the length decoding would use more that 4 bytes.
+  * @retval -EAGAIN if the buffer would be exceeded during the read.
+  */
+-static int packet_length_decode(struct buf_ctx *buf, uint32_t *length)
++static int
++__attribute__((section(".ramfunc"), noinline))
++packet_length_decode(struct buf_ctx *buf, uint32_t *length)
+ {
+ 	uint8_t shift = 0U;
+ 	uint8_t bytes = 0U;
+ 
+ 	*length = 0U;
+ 	do {
+-		if (bytes >= MQTT_MAX_LENGTH_BYTES) {
++		// + if (bytes >= MQTT_MAX_LENGTH_BYTES)
++		if (bytes > MQTT_MAX_LENGTH_BYTES) {
+ 			return -EINVAL;
+ 		}
+ 
+@@ -186,16 +189,16 @@ static int packet_length_decode(struct buf_ctx *buf, uint32_t *length)
+ 		bytes++;
+ 	} while ((*(buf->cur++) & MQTT_LENGTH_CONTINUATION_BIT) != 0U);
+ 
+-	if (*length > MQTT_MAX_PAYLOAD_SIZE) {
++	/*if (*length > MQTT_MAX_PAYLOAD_SIZE) {
+ 		return -EINVAL;
+-	}
++	}*/
+ 
+ 	NET_DBG("length:0x%08x", *length);
+ 
+ 	return 0;
+ }
+ 
+-int fixed_header_decode(struct buf_ctx *buf, uint8_t *type_and_flags,
++int __ramfunc fixed_header_decode(struct buf_ctx *buf, uint8_t *type_and_flags,
+ 			uint32_t *length)
+ {
+ 	int err_code;
+diff --git a/subsys/shell/shell_utils.c b/subsys/shell/shell_utils.c
+index 00d3315d0ce..6fa53b43785 100644
+--- a/subsys/shell/shell_utils.c
++++ b/subsys/shell/shell_utils.c
+@@ -423,7 +423,7 @@ int shell_set_root_cmd(const char *cmd)
+ 
+ 
+ 
+-void z_shell_spaces_trim(char *str)
++void __attribute__((section(".ramfunc"))) z_shell_spaces_trim(char *str)
+ {
+ 	uint16_t len = z_shell_strlen(str);
+ 	uint16_t shift = 0U;
+@@ -444,7 +444,7 @@ void z_shell_spaces_trim(char *str)
+ 					/* +1 for EOS */
+ 					memmove(&str[i + 1],
+ 						&str[j],
+-						len - j + 1);
++						len - shift + 1);
+ 					len -= shift;
+ 					shift = 0U;
+ 				}
+diff --git a/subsys/usb/device/class/msc.c b/subsys/usb/device/class/msc.c
+index 1971c942af8..4c3b56fa6cf 100644
+--- a/subsys/usb/device/class/msc.c
++++ b/subsys/usb/device/class/msc.c
+@@ -512,7 +512,7 @@ static bool check_cbw_data_length(void)
+ 	return true;
+ }
+ 
+-static bool infoTransfer(void)
++static __ramfunc bool infoTransfer(void)
+ {
+ 	uint32_t n;
+ 
+@@ -524,11 +524,11 @@ static bool infoTransfer(void)
+ 	n = sys_get_be32(&cbw.CB[2]);
+ 
+ 	LOG_DBG("LBA (block) : 0x%x ", n);
+-	if (n >= block_count) {
++	/*if (n >= block_count) {
+ 		LOG_ERR("LBA out of range");
+ 		fail();
+ 		return false;
+-	}
++	}*/
+ 
+ 	curr_lba = n;
+ 	curr_offset = 0U;
+@@ -559,8 +559,13 @@ static bool infoTransfer(void)
+ 	return true;
+ }
+ 
++volatile uint8_t printed = 0;
+ static void CBWDecode(uint8_t *buf, uint16_t size)
+ {
++	if (printed == 0) {
++		printk("Address &fail: %08X\n", &fail);
++		printed = 1;
++	}
+ 	if (size != sizeof(cbw)) {
+ 		LOG_ERR("size != sizeof(cbw)");
+ 		return;

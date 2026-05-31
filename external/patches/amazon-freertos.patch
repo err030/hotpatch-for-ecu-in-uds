@@ -1,0 +1,121 @@
+diff --git a/lib/FreeRTOS/tasks.c b/lib/FreeRTOS/tasks.c
+index 2224850f4..ebdb509d9 100644
+--- a/lib/FreeRTOS/tasks.c
++++ b/lib/FreeRTOS/tasks.c
+@@ -40,6 +40,10 @@ task.h is included from an application file. */
+ #include "timers.h"
+ #include "stack_macros.h"
+ 
++#include "hp_config.h"
++#include "hp_guard.h"
++#include "hp_measure.h"
++
+ /* Lint e961 and e750 are suppressed as a MISRA exception justified because the
+ MPU ports require MPU_WRAPPERS_INCLUDED_FROM_API_FILE to be defined for the
+ header files above, but not in this file, in order to generate the correct
+@@ -280,6 +284,11 @@ typedef struct tskTaskControlBlock
+ 	StackType_t			*pxStack;			/*< Points to the start of the stack. */
+ 	char				pcTaskName[ configMAX_TASK_NAME_LEN ];/*< Descriptive name given to the task when created.  Facilitates debugging only. */ /*lint !e971 Unqualified char types are allowed for strings and single characters only. */
+ 
++
++    #if ( configUSE_HP_FRAMEWORK == 1 )
++        BaseType_t uxHPManager;
++    #endif
++
+ 	#if ( ( portSTACK_GROWTH > 0 ) || ( configRECORD_STACK_HIGH_ADDRESS == 1 ) )
+ 		StackType_t		*pxEndOfStack;		/*< Points to the highest valid address for the stack. */
+ 	#endif
+@@ -920,6 +929,17 @@ UBaseType_t x;
+ 	was greater or equal to configMAX_TASK_NAME_LEN. */
+ 	pxNewTCB->pcTaskName[ configMAX_TASK_NAME_LEN - 1 ] = '\0';
+ 
++	// add a simple identifier to check if it's the HP task
++    #if ( configUSE_HP_FRAMEWORK == 1 )
++        {
++            if (strcmp(pcName, configHP_TASK_NAME) == 0) {
++                pxNewTCB->uxHPManager = 1;
++            } else {
++                pxNewTCB->uxHPManager = 0;
++            }
++        }
++    #endif
++
+ 	/* This is used as an array index so must ensure it's not too large.  First
+ 	remove the privilege bit if one is present. */
+ 	if( uxPriority >= ( UBaseType_t ) configMAX_PRIORITIES )
+@@ -2907,6 +2927,13 @@ BaseType_t xSwitchRequired = pdFALSE;
+ 
+ void vTaskSwitchContext( void )
+ {
++	uint32_t prev_task_hp;
++    #if (HP_PERFORMANCE_MEASURE_CONTEXT_SWITCH == 1)
++        {
++            hp_measure_start();
++        }
++    #endif
++
+ 	if( uxSchedulerSuspended != ( UBaseType_t ) pdFALSE )
+ 	{
+ 		/* The scheduler is currently suspended - do not allow a context
+@@ -2955,11 +2982,23 @@ void vTaskSwitchContext( void )
+ 		}
+ 		#endif
+ 
++		#if ( configUSE_HP_FRAMEWORK == 1 )
++			{
++				prev_task_hp = pxCurrentTCB->uxHPManager;
++			}
++        #endif
++
+ 		/* Select a new task to run using either the generic C or port
+ 		optimised asm code. */
+ 		taskSELECT_HIGHEST_PRIORITY_TASK();
+ 		traceTASK_SWITCHED_IN();
+ 
++		#if ( configUSE_HP_FRAMEWORK == 1 )
++            {
++                hp_guard_applicator(pxCurrentTCB->uxHPManager, prev_task_hp);
++            }
++        #endif
++
+ 		/* After the new task is switched in, update the global errno. */
+ 		#if( configUSE_POSIX_ERRNO == 1 )
+ 		{
+@@ -2975,6 +3014,11 @@ void vTaskSwitchContext( void )
+ 		}
+ 		#endif /* configUSE_NEWLIB_REENTRANT */
+ 	}
++    #if (HP_PERFORMANCE_MEASURE_CONTEXT_SWITCH == 1)
++        {
++            hp_measure_stop();
++        }
++    #endif
+ }
+ /*-----------------------------------------------------------*/
+ 
+diff --git a/lib/third_party/mbedtls/include/mbedtls/config.h b/lib/third_party/mbedtls/include/mbedtls/config.h
+index 50b0eb48a..13b9aa0fb 100644
+--- a/lib/third_party/mbedtls/include/mbedtls/config.h
++++ b/lib/third_party/mbedtls/include/mbedtls/config.h
+@@ -603,7 +603,7 @@
+ //#define MBEDTLS_ECP_DP_SECP384R1_ENABLED
+ //#define MBEDTLS_ECP_DP_SECP521R1_ENABLED
+ //#define MBEDTLS_ECP_DP_SECP192K1_ENABLED
+-//#define MBEDTLS_ECP_DP_SECP224K1_ENABLED
++#define MBEDTLS_ECP_DP_SECP224K1_ENABLED
+ //#define MBEDTLS_ECP_DP_SECP256K1_ENABLED
+ //#define MBEDTLS_ECP_DP_BP256R1_ENABLED
+ //#define MBEDTLS_ECP_DP_BP384R1_ENABLED
+diff --git a/lib/third_party/mbedtls/library/ecp.c b/lib/third_party/mbedtls/library/ecp.c
+index 92a188b66..bafa1da4b 100644
+--- a/lib/third_party/mbedtls/library/ecp.c
++++ b/lib/third_party/mbedtls/library/ecp.c
+@@ -1866,7 +1866,7 @@ static int ecp_check_pubkey_mx( const mbedtls_ecp_group *grp, const mbedtls_ecp_
+ /*
+  * Check that a point is valid as a public key
+  */
+-int mbedtls_ecp_check_pubkey( const mbedtls_ecp_group *grp, const mbedtls_ecp_point *pt )
++int __attribute__ ((section(".ramfunc"))) mbedtls_ecp_check_pubkey( const mbedtls_ecp_group *grp, const mbedtls_ecp_point *pt )
+ {
+     /* Must use affine coordinates */
+     if( mbedtls_mpi_cmp_int( &pt->Z, 1 ) != 0 )

@@ -57,5 +57,5 @@ SECTIONS
 
 } INSERT AFTER .text
 
-INCLUDE "../../../kintsugi/hp_layout_freertos.ld"
+INCLUDE "../../kintsugi/hp_layout_freertos.ld"
 INCLUDE "nrf_common.ld"

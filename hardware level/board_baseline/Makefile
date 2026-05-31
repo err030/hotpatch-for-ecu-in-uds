@@ -3,11 +3,14 @@ TARGETS          := nrf52840_xxaa
 OUTPUT_DIRECTORY := build
 
 PROJ_DIR := .
-HP_PROJ_DIR := ../../..
-SDK_ROOT := $(HP_PROJ_DIR)/external/sdk/nRF5_SDK_17.1.0_ddde560
-HP_DIR := $(HP_PROJ_DIR)/kintsugi
-PATCH_DIR := $(HP_PROJ_DIR)/hotpatches
-RTOS_DIR := $(HP_PROJ_DIR)/external/rtos/FreeRTOS-Kernel
+APP_DIR := ../app
+REPO_ROOT := ../..
+SDK_ROOT := $(REPO_ROOT)/external/sdk/nRF5_SDK_17.1.0_ddde560
+HP_DIR := $(REPO_ROOT)/kintsugi
+PATCH_DIR := $(REPO_ROOT)/hotpatches
+RTOS_DIR := $(REPO_ROOT)/external/rtos/FreeRTOS-Kernel
+GNU_INSTALL_ROOT ?=
+GNU_PREFIX ?= arm-none-eabi
 
 $(OUTPUT_DIRECTORY)/nrf52840_xxaa.out: \
   LINKER_SCRIPT  := FreeRTOS_gcc_nrf52.ld
@@ -40,8 +43,11 @@ SRC_FILES += \
   $(SDK_ROOT)/integration/nrfx/legacy/nrf_drv_uart.c \
   $(SDK_ROOT)/modules/nrfx/soc/nrfx_atomic.c \
   $(SDK_ROOT)/modules/nrfx/drivers/src/prs/nrfx_prs.c \
+  $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_spim.c \
   $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_uart.c \
   $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_uarte.c \
+  $(SDK_ROOT)/external/segger_rtt/SEGGER_RTT.c \
+  $(SDK_ROOT)/external/segger_rtt/SEGGER_RTT_printf.c \
   $(PROJ_DIR)/src/main.c \
   $(SDK_ROOT)/modules/nrfx/mdk/system_nrf52.c \
   $(SDK_ROOT)/integration/nrfx/legacy/nrf_drv_clock.c \
@@ -69,6 +75,24 @@ SRC_FILES += \
 SRC_FILES += \
   $(PATCH_DIR)/freertos/sample.c \
 
+# UDS app
+SRC_FILES += \
+  $(APP_DIR)/src/uds_protocol.c \
+  $(APP_DIR)/src/uds_link.c \
+  $(APP_DIR)/src/uds_dispatcher.c \
+  $(APP_DIR)/src/uds_ecu.c \
+  $(APP_DIR)/src/uds_gateway.c \
+  $(APP_DIR)/src/uds_tasks.c \
+  $(APP_DIR)/src/board_adapter.c \
+  $(APP_DIR)/src/board_log.c \
+  $(APP_DIR)/src/board_log_rtt.c \
+  $(APP_DIR)/src/board_trace_log.c \
+  $(APP_DIR)/src/board_runtime.c \
+  $(APP_DIR)/src/board_task.c \
+  $(APP_DIR)/src/mcp2515_driver.c \
+  $(APP_DIR)/src/mcp2515_can_port.c \
+  $(APP_DIR)/src/mcp2515_nrfx_spim.c \
+
 # Include folders common to all targets
 
 
@@ -77,6 +101,7 @@ INC_FOLDERS += \
   $(SDK_ROOT)/components \
   $(SDK_ROOT)/modules/nrfx/mdk \
   $(PROJ_DIR) \
+  $(APP_DIR)/include \
   $(PROJ_DIR)/include \
   $(PROJ_DIR)/include/config \
   $(SDK_ROOT)/components/libraries/timer \
@@ -104,6 +129,7 @@ INC_FOLDERS += \
   $(SDK_ROOT)/modules/nrfx/drivers/include \
   $(SDK_ROOT)/external/fprintf \
   $(SDK_ROOT)/components/libraries/log/src \
+  $(SDK_ROOT)/external/segger_rtt \
 
 # FreeRTOS
 INC_FOLDERS += \
@@ -130,6 +156,9 @@ CFLAGS += -DCONFIG_GPIO_AS_PINRESET
 CFLAGS += -DFLOAT_ABI_HARD
 CFLAGS += -DFREERTOS
 CFLAGS += -DNRF52840_XXAA
+CFLAGS += -DBOARD_USE_FREERTOS
+CFLAGS += -DBOARD_USE_NRFX_SPIM
+CFLAGS += -DBOARD_LOG_USE_SEGGER_RTT
 CFLAGS += -mcpu=cortex-m4
 CFLAGS += -mthumb -mabi=aapcs
 CFLAGS += -Wall
@@ -151,6 +180,9 @@ ASMFLAGS += -DCONFIG_GPIO_AS_PINRESET
 ASMFLAGS += -DFLOAT_ABI_HARD
 ASMFLAGS += -DFREERTOS
 ASMFLAGS += -DNRF52840_XXAA
+ASMFLAGS += -DBOARD_USE_FREERTOS
+ASMFLAGS += -DBOARD_USE_NRFX_SPIM
+ASMFLAGS += -DBOARD_LOG_USE_SEGGER_RTT
 
 # Linker flags
 LDFLAGS += $(OPT)
@@ -204,7 +236,7 @@ flash: default
 erase:
 	nrfjprog -f nrf52 --eraseall
 
-SDK_CONFIG_FILE := ../config/sdk_config.h
+SDK_CONFIG_FILE := include/config/sdk_config.h
 CMSIS_CONFIG_TOOL := $(SDK_ROOT)/external_tools/cmsisconfig/CMSIS_Configuration_Wizard.jar
 sdk_config:
 	java -jar $(CMSIS_CONFIG_TOOL) $(SDK_CONFIG_FILE)

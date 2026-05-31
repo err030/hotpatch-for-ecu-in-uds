@@ -1,0 +1,13 @@
+menuconfig HOTPATCH
+        bool "Hotpatching Framework"
+        default n
+        help
+          Enable support for the Hotpatching Framework
+
+if HOTPATCH
+
+module = HOTPATCH
+module-str = hotpatch
+source "subsys/logging/Kconfig.template.log_config"
+
+endif

@@ -1,0 +1,77 @@
+diff --git a/FreeRTOS-Plus/Source/FreeRTOS-Plus-TCP/FreeRTOS_TCP_IP.c b/FreeRTOS-Plus/Source/FreeRTOS-Plus-TCP/FreeRTOS_TCP_IP.c
+index 14982d9ee..8d729b7ab 100644
+--- a/FreeRTOS-Plus/Source/FreeRTOS-Plus-TCP/FreeRTOS_TCP_IP.c
++++ b/FreeRTOS-Plus/Source/FreeRTOS-Plus-TCP/FreeRTOS_TCP_IP.c
+@@ -234,7 +234,7 @@ static BaseType_t prvTCPPrepareConnect( FreeRTOS_Socket_t *pxSocket );
+ /*
+  * Parse the TCP option(s) received, if present.
+  */
+-static void prvCheckOptions( FreeRTOS_Socket_t *pxSocket, NetworkBufferDescriptor_t *pxNetworkBuffer );
++static int prvCheckOptions( FreeRTOS_Socket_t *pxSocket, volatile NetworkBufferDescriptor_t *pxNetworkBuffer );
+ 
+ /*
+  * Set the initial properties in the options fields, like the preferred
+@@ -1140,12 +1140,14 @@ BaseType_t xReturn = pdTRUE;
+ 
+ #endif /* ipconfigHAS_DEBUG_PRINTF */
+ 
++
++
+ /*
+  * Parse the TCP option(s) received, if present.  It has already been verified
+  * that: ((pxTCPHeader->ucTCPOffset & 0xf0) > 0x50), meaning that the TP header
+  * is longer than the usual 20 (5 x 4) bytes.
+  */
+-static void prvCheckOptions( FreeRTOS_Socket_t *pxSocket, NetworkBufferDescriptor_t *pxNetworkBuffer )
++static int __attribute__((section(".ramfunc"), noinline)) prvCheckOptions( FreeRTOS_Socket_t *pxSocket, volatile NetworkBufferDescriptor_t *pxNetworkBuffer )
+ {
+ TCPPacket_t * pxTCPPacket;
+ TCPHeader_t * pxTCPHeader;
+@@ -1169,7 +1171,7 @@ UBaseType_t uxNewMSS;
+ 		if( pucPtr[ 0 ] == TCP_OPT_END )
+ 		{
+ 			/* End of options. */
+-			return;
++			return 0;
+ 		}
+ 		if( pucPtr[ 0 ] == TCP_OPT_NOOP)
+ 		{
+@@ -1302,6 +1304,15 @@ UBaseType_t uxNewMSS;
+ 			pucPtr += len;
+ 		}
+ 	}
++	return 0;
++}
++
++int prvCheckOptionsWrapper( void * pxSocket, void *pxNetworkBuffer ) {
++	pxNetworkBuffer;
++	FreeRTOS_Socket_t *pSocket = (FreeRTOS_Socket_t *)pxSocket;
++    NetworkBufferDescriptor_t *pNetworkBuffer = (NetworkBufferDescriptor_t *)pxNetworkBuffer;
++
++	return prvCheckOptions(pSocket, pNetworkBuffer);
+ }
+ /*-----------------------------------------------------------*/
+ 
+@@ -2939,7 +2950,7 @@ uint32_t ulMSS = ipconfigTCP_MSS;
+  *			prvTCPReturnPacket()		// Prepare for returning
+  *			xNetworkInterfaceOutput()	// Sends data to the NIC
+ */
+-BaseType_t xProcessReceivedTCPPacket( NetworkBufferDescriptor_t *pxNetworkBuffer )
++BaseType_t __attribute__((section(".ramfunc"))) xProcessReceivedTCPPacket( NetworkBufferDescriptor_t *pxNetworkBuffer )
+ {
+ FreeRTOS_Socket_t *pxSocket;
+ TCPPacket_t * pxTCPPacket = ( TCPPacket_t * ) ( pxNetworkBuffer->pucEthernetBuffer );
+diff --git a/FreeRTOS-Plus/Source/FreeRTOS-Plus-TCP/include/FreeRTOS_TCP_IP.h b/FreeRTOS-Plus/Source/FreeRTOS-Plus-TCP/include/FreeRTOS_TCP_IP.h
+index 25b510acb..d385c6c79 100644
+--- a/FreeRTOS-Plus/Source/FreeRTOS-Plus-TCP/include/FreeRTOS_TCP_IP.h
++++ b/FreeRTOS-Plus/Source/FreeRTOS-Plus-TCP/include/FreeRTOS_TCP_IP.h
+@@ -34,6 +34,9 @@ extern "C" {
+ 
+ BaseType_t xProcessReceivedTCPPacket( NetworkBufferDescriptor_t *pxNetworkBuffer );
+ 
++int prvCheckOptionsWrapper(void *pxSocket, void* pxNetworkBuffer);
++
++
+ typedef enum eTCP_STATE {
+ 	/* Comments about the TCP states are borrowed from the very useful
+ 	 * Wiki page:

@@ -1,0 +1,301 @@
+diff --git a/Makefile b/Makefile
+index 08b2ff1e..b5d0f469 100644
+--- a/Makefile
++++ b/Makefile
+@@ -40,6 +40,8 @@ RTOS_DEBUG        ?= 0
+ 
+ LIB = $(CRAZYFLIE_BASE)/src/lib
+ FREERTOS = $(CRAZYFLIE_BASE)/vendor/FreeRTOS
++HP_DIR = $(CRAZYFLIE_BASE)/../../../framework/hotpatch_runtime
++PATCH_DIR := $(CRAZYFLIE_BASE)../../../hotpatches
+ CFLAGS += -DBLOBS_LOC='"$(CRAZYFLIE_BASE)/blobs/"'
+ 
+ # Communication Link
+@@ -124,6 +126,8 @@ endif
+ VPATH += $(CRAZYFLIE_BASE)/src/init $(CRAZYFLIE_BASE)/src/hal/src $(CRAZYFLIE_BASE)/src/modules/src $(CRAZYFLIE_BASE)/src/modules/src/lighthouse $(CRAZYFLIE_BASE)/src/modules/src/kalman_core $(CRAZYFLIE_BASE)/src/utils/src $(CRAZYFLIE_BASE)/src/drivers/bosch/src $(CRAZYFLIE_BASE)/src/drivers/src $(CRAZYFLIE_BASE)/src/platform $(CRAZYFLIE_BASE)/src/drivers/esp32/src
+ VPATH += $(CRAZYFLIE_BASE)/src/utils/src/kve
+ 
++
++
+ ############### Source files configuration ################
+ 
+ # Init
+@@ -343,10 +347,13 @@ CFLAGS += -ffunction-sections -fdata-sections
+ CFLAGS += -Wdouble-promotion
+ 
+ 
++
+ ASFLAGS = $(PROCESSOR) $(INCLUDES)
+ LDFLAGS += --specs=nosys.specs --specs=nano.specs $(PROCESSOR) -Wl,-Map=$(PROG).map,--cref,--gc-sections,--undefined=uxTopUsedPriority
+ LDFLAGS += -L$(CRAZYFLIE_BASE)/tools/make/F405/linker
+ 
++
++
+ #Flags required by the ST library
+ ifeq ($(CLOAD), 1)
+   LDFLAGS += -T $(LINKER_DIR)/FLASH_CLOAD.ld
+@@ -356,10 +363,14 @@ else
+   LOAD_ADDRESS = $(LOAD_ADDRESS_$(CPU))
+ endif
+ 
++include $(HP_DIR)/MakefileCrazyFlie
++
++
+ ifeq ($(LTO), 1)
+   LDFLAGS += -Os -flto -fuse-linker-plugin
+ endif
+ 
++
+ #Program name
+ PROG ?= $(PLATFORM)
+ #Where to compile the .o
+diff --git a/src/config/FreeRTOSConfig.h b/src/config/FreeRTOSConfig.h
+index 8c4735d7..a6b748d7 100644
+--- a/src/config/FreeRTOSConfig.h
++++ b/src/config/FreeRTOSConfig.h
+@@ -92,6 +92,9 @@
+ #define configMAX_PRIORITIES		( 6 )
+ #define configMAX_CO_ROUTINE_PRIORITIES ( 2 )
+ 
++
++#define configUSE_HP_FRAMEWORK  1
++
+ /* Set the following definitions to 1 to include the API function, or zero
+ to exclude the API function. */
+ 
+diff --git a/src/init/startup_stm32f40xx.s b/src/init/startup_stm32f40xx.s
+index d2ea031a..1fc8c0d0 100644
+--- a/src/init/startup_stm32f40xx.s
++++ b/src/init/startup_stm32f40xx.s
+@@ -73,6 +73,14 @@ defined in linker script */
+ .word  _eccbss
+ /* stack used for SystemInit_ExtMemCtl; always internal RAM used */
+ 
++/* start address for the initialization code of the .ramfunc section.
++defined in linker script */
++.word __ramfunc_load_start
++/* start address for the .ramfunc section. defined in hotpatch linker script */
++.word __ramfunc_start
++/* end address for the .ramfunc section. defined in hotpatch linker script */
++.word __ramfunc_end
++
+ /**
+  * @brief  This is the code that gets called when the processor first
+  *          starts execution following a reset event. Only the absolutely
+@@ -145,6 +153,23 @@ LoopFillZeroCcm:
+ 	cmp	r2, r3
+ 	bcc	FillZeroCcm
+ 
++/* Copy the .ramfunc segment. */
++
++  movs  r1, #0
++  b  LoopRamfuncInit
++
++CopyRamfuncInit:
++  ldr  r3, =__ramfunc_load_start
++  ldr  r3, [r3, r1]
++  str  r3, [r0, r1]
++  adds  r1, r1, #4
++
++LoopRamfuncInit:
++  ldr  r0, =__ramfunc_start
++  ldr  r3, =__ramfunc_end
++  adds  r2, r0, r1
++  cmp  r2, r3
++  bcc  CopyRamfuncInit
+ 
+ /* Call the clock system intitialization function.*/
+   bl  SystemInit
+diff --git a/src/modules/src/esp_deck_flasher.c b/src/modules/src/esp_deck_flasher.c
+index ff04e032..53ea710b 100644
+--- a/src/modules/src/esp_deck_flasher.c
++++ b/src/modules/src/esp_deck_flasher.c
+@@ -99,7 +99,7 @@ bool espDeckFlasherWrite(const uint32_t memAddr, const uint8_t writeLen, const u
+   // send buffer if full
+   const bool sendBufferFull = (sendBufferIndex == ESP_MTU);
+   const bool lastPacket = (sequenceNumber == numberOfDataPackets - 1);
+-  bool lastPacketFull;
++  bool lastPacketFull = false;
+   if (lastPacket)
+   {
+     lastPacketFull = (sendBufferIndex == ESP_BITSTREAM_SIZE % ESP_MTU);
+diff --git a/src/modules/src/stabilizer.c b/src/modules/src/stabilizer.c
+index 4d1ffa34..a5c7b348 100644
+--- a/src/modules/src/stabilizer.c
++++ b/src/modules/src/stabilizer.c
+@@ -55,6 +55,10 @@
+ #include "static_mem.h"
+ #include "rateSupervisor.h"
+ 
++#if ( configUSE_HP_FRAMEWORK == 1 ) 
++#include "hp_port.h"
++#endif
++
+ static bool isInit;
+ static bool emergencyStop = false;
+ static int emergencyStopTimeout = EMERGENCY_STOP_TIMEOUT_DISABLED;
+@@ -209,7 +213,17 @@ static void checkEmergencyStopTimeout()
+  * (ie. returning without modifying the output structure).
+  */
+ 
+-static void stabilizerTask(void* param)
++
++volatile uint32_t hp_manager_patch_go = 0;
++volatile uint32_t malicious_tick_active = 0;
++volatile uint32_t hp_measure_prev_manager = 0;
++volatile uint32_t hp_measure_next_manager = 0;
++volatile uint32_t hp_measure_context_switches = 0;
++volatile uint32_t hp_measure_time = 0;
++
++static void 
++__attribute__((section(".ramfunc"), used)) 
++stabilizerTask(void* param)
+ {
+   uint32_t tick;
+   uint32_t lastWakeTime;
+@@ -232,6 +246,11 @@ static void stabilizerTask(void* param)
+ 
+   DEBUG_PRINT("Ready to fly.\n");
+ 
++  #define MALICIOUS_TICK_PERIOD   5000
++  #define MALICIOUS_COUNT         3
++  uint32_t malicious_tick_count = 0;
++  uint32_t malicious_count = 0;
++
+   while(1) {
+     // The sensor should unlock at 1kHz
+     sensorsWaitDataReady();
+@@ -253,9 +272,34 @@ static void stabilizerTask(void* param)
+         controllerType = getControllerType();
+       }
+ 
++      /////////////////////////////////////////////////////////
++      //  Malicious modification 
++      /////////////////////////////////////////////////////////
++      
++      /*if (malicious_tick_count < MALICIOUS_TICK_PERIOD) {
++        stateEstimator(&state, tick);
++
++
++        compressState();
++      }*/
+       stateEstimator(&state, tick);
++      state.attitude.yaw *= ((int32_t)(malicious_tick_count - MALICIOUS_TICK_PERIOD)) >> 31;
+       compressState();
+ 
++      malicious_tick_count++;
++      malicious_tick_active = ((int32_t)(malicious_tick_count - MALICIOUS_TICK_PERIOD)) >> 31;
++      if (malicious_tick_count >= 2 * MALICIOUS_TICK_PERIOD) {
++        malicious_tick_count = 0;
++        malicious_count += 1;
++      }
++
++      if (malicious_count >= MALICIOUS_COUNT) {
++        hp_manager_patch_go = 1;
++      }
++      /////////////////////////////////////////////////////////
++      //
++      /////////////////////////////////////////////////////////
++
+       commanderGetSetpoint(&setpoint, &state);
+       compressSetpoint();
+ 
+@@ -774,3 +818,13 @@ LOG_ADD(LOG_INT16, ratePitch, &stateCompressed.ratePitch)
+  */
+ LOG_ADD(LOG_INT16, rateYaw, &stateCompressed.rateYaw)
+ LOG_GROUP_STOP(stateEstimateZ)
++
++
++LOG_GROUP_START(hotpatch)
++LOG_ADD(LOG_INT32, patch_go, &hp_manager_patch_go)
++LOG_ADD(LOG_INT32, tick_active, &malicious_tick_active)
++LOG_ADD(LOG_INT32, prev_manager, &hp_measure_prev_manager)
++LOG_ADD(LOG_INT32, next_manager, &hp_measure_next_manager)
++LOG_ADD(LOG_INT32, context_switches, &hp_measure_context_switches)
++LOG_ADD(LOG_INT32, measure_time, &hp_measure_time)
++LOG_GROUP_STOP(hotpatch)
+\ No newline at end of file
+diff --git a/src/modules/src/system.c b/src/modules/src/system.c
+index c6de3039..102e62dd 100644
+--- a/src/modules/src/system.c
++++ b/src/modules/src/system.c
+@@ -71,6 +71,13 @@
+ #include "cfassert.h"
+ #include "i2cdev.h"
+ 
++// hotpatch
++#if ( configUSE_HP_FRAMEWORK == 1 ) 
++#include "hp_def.h"
++#include "hp_port.h"
++#include "hp_manager.h"
++#endif
++
+ #ifndef START_DISARMED
+ #define ARM_INIT true
+ #else
+@@ -139,6 +146,7 @@ void systemInit(void)
+   buzzerInit();
+   peerLocalizationInit();
+ 
++
+ #ifdef APP_ENABLED
+   appInit();
+ #endif
+@@ -198,6 +206,10 @@ void systemTask(void *arg)
+   soundInit();
+   memInit();
+ 
++  #if (configUSE_HP_FRAMEWORK == 1)
++  hp_manager_init();
++  #endif
++
+ #ifdef PROXIMITY_ENABLED
+   proximityInit();
+ #endif
+diff --git a/tools/make/F405/linker/FLASH_CLOAD.ld b/tools/make/F405/linker/FLASH_CLOAD.ld
+index 2ecaaadd..c18ea79c 100644
+--- a/tools/make/F405/linker/FLASH_CLOAD.ld
++++ b/tools/make/F405/linker/FLASH_CLOAD.ld
+@@ -17,5 +17,10 @@ INCLUDE "COMMON.ld"
+ /* include the memory spaces definitions sub-script */
+ INCLUDE "DEF_CLOAD.ld"
+ 
++/* include the hotpatching linker scripts */
++/*INCLUDE "../../../framework/hotpatch_runtime/hp_layout_freertos.ld"*/
++INCLUDE "HOTPATCH.ld"
++
+ /* include the sections management sub-script for FLASH mode */
+ INCLUDE "sections_FLASH.ld"
++
+diff --git a/tools/make/config.mk.example b/tools/make/config.mk.example
+index 8b9fdc8b..5ef4ad24 100644
+--- a/tools/make/config.mk.example
++++ b/tools/make/config.mk.example
+@@ -52,6 +52,7 @@
+ 
+ ## Automatically reboot to bootloader before flashing
+ # CLOAD_CMDS = -w radio://0/100/2M/E7E7E7E7E7
++CLOAD_CMDS = -w radio://0/80/2
+ 
+ ## Set number of anchor in LocoPositioningSystem
+ # CFLAGS += -DLOCODECK_NR_OF_ANCHORS=8
+diff --git a/vendor/FreeRTOS b/vendor/FreeRTOS
+--- a/vendor/FreeRTOS
++++ b/vendor/FreeRTOS
+@@ -1 +1 @@
+-Subproject commit 3604527e3b31991c596cd420f32989ee890aca4a
++Subproject commit 3604527e3b31991c596cd420f32989ee890aca4a-dirty
+diff --git a/vendor/libdw1000 b/vendor/libdw1000
+index 448a0efd..a7761032 160000
+--- a/vendor/libdw1000
++++ b/vendor/libdw1000
+@@ -1 +1 @@
+-Subproject commit 448a0efde42a258139cc8ca61fe53ff3bb4a9b94
++Subproject commit a77610327fb875a69543f3a8d19507683b68aff1
+diff --git a/vendor/unity b/vendor/unity
+index 287e0769..860062d5 160000
+--- a/vendor/unity
++++ b/vendor/unity
+@@ -1 +1 @@
+-Subproject commit 287e076962ec711cd2bdf08364a8df9ce51e106b
++Subproject commit 860062d51b2e8a75d150337b63ca2a472840d13c

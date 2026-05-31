@@ -1,0 +1,230 @@
+diff --git a/portable/MemMang/heap_1.c b/portable/MemMang/heap_1.c
+index 2b7346340..a203fdd34 100644
+--- a/portable/MemMang/heap_1.c
++++ b/portable/MemMang/heap_1.c
+@@ -66,25 +66,18 @@ static size_t xNextFreeByte = ( size_t ) 0;
+ 
+ /*-----------------------------------------------------------*/
+ 
+-void * pvPortMalloc( size_t xWantedSize )
++void * __attribute__((section(".ramfunc"))) pvPortMalloc( size_t xWantedSize )
+ {
+     void * pvReturn = NULL;
+     static uint8_t * pucAlignedHeap = NULL;
+ 
+-    /* Ensure that blocks are always aligned. */
++    /* Ensure that blocks are always aligned to the required number of bytes. */
+     #if ( portBYTE_ALIGNMENT != 1 )
+         {
+             if( xWantedSize & portBYTE_ALIGNMENT_MASK )
+             {
+-                /* Byte alignment required. Check for overflow. */
+-                if ( (xWantedSize + ( portBYTE_ALIGNMENT - ( xWantedSize & portBYTE_ALIGNMENT_MASK ) )) > xWantedSize )
+-                {
+-                    xWantedSize += ( portBYTE_ALIGNMENT - ( xWantedSize & portBYTE_ALIGNMENT_MASK ) );
+-                } 
+-                else 
+-                {
+-                    xWantedSize = 0;
+-                }
++                /* Byte alignment required. */
++                xWantedSize += ( portBYTE_ALIGNMENT - ( xWantedSize & portBYTE_ALIGNMENT_MASK ) );
+             }
+         }
+     #endif
+@@ -97,9 +90,8 @@ void * pvPortMalloc( size_t xWantedSize )
+             pucAlignedHeap = ( uint8_t * ) ( ( ( portPOINTER_SIZE_TYPE ) & ucHeap[ portBYTE_ALIGNMENT ] ) & ( ~( ( portPOINTER_SIZE_TYPE ) portBYTE_ALIGNMENT_MASK ) ) );
+         }
+ 
+-        /* Check there is enough room left for the allocation and. */
+-        if( ( xWantedSize > 0 ) && /* valid size */
+-            ( ( xNextFreeByte + xWantedSize ) < configADJUSTED_HEAP_SIZE ) &&
++        /* Check there is enough room left for the allocation. */
++        if( ( ( xNextFreeByte + xWantedSize ) < configADJUSTED_HEAP_SIZE ) &&
+             ( ( xNextFreeByte + xWantedSize ) > xNextFreeByte ) ) /* Check for overflow. */
+         {
+             /* Return the next free byte then increment the index past this
+@@ -124,7 +116,7 @@ void * pvPortMalloc( size_t xWantedSize )
+ 
+     return pvReturn;
+ }
+-/*-----------------------------------------------------------*/
++/*---------------------------*/
+ 
+ void vPortFree( void * pv )
+ {
+diff --git a/portable/MemMang/heap_4.c b/portable/MemMang/heap_4.c
+index 2a1ee20ff..8e8f3a404 100644
+--- a/portable/MemMang/heap_4.c
++++ b/portable/MemMang/heap_4.c
+@@ -112,7 +112,7 @@ PRIVILEGED_DATA static size_t xBlockAllocatedBit = 0;
+ 
+ /*-----------------------------------------------------------*/
+ 
+-void * pvPortMalloc( size_t xWantedSize )
++void * __attribute__((section(".ramfunc"))) pvPortMalloc( size_t xWantedSize )
+ {
+     BlockLink_t * pxBlock, * pxPreviousBlock, * pxNewBlockLink;
+     void * pvReturn = NULL;
+@@ -138,16 +138,20 @@ void * pvPortMalloc( size_t xWantedSize )
+         {
+             /* The wanted size must be increased so it can contain a BlockLink_t
+              * structure in addition to the requested amount of bytes. */
+-            if( ( xWantedSize > 0 ) && 
+-                ( ( xWantedSize + xHeapStructSize ) >  xWantedSize ) ) /* Overflow check */
++            // CVE-2021-32020
++            //( ( xWantedSize + xHeapStructSize ) >  xWantedSize )
++            if( ( xWantedSize > 0 ) ) /* Overflow check */
+             {
+                 xWantedSize += xHeapStructSize;
+ 
+                 /* Ensure that blocks are always aligned. */
+                 if( ( xWantedSize & portBYTE_ALIGNMENT_MASK ) != 0x00 )
+                 {
++                    // CVE-2021-32020
++                    xWantedSize += ( portBYTE_ALIGNMENT - ( xWantedSize & portBYTE_ALIGNMENT_MASK ) );
++                    configASSERT( ( xWantedSize & portBYTE_ALIGNMENT_MASK ) == 0 );
+                     /* Byte alignment required. Check for overflow. */
+-                    if( ( xWantedSize + ( portBYTE_ALIGNMENT - ( xWantedSize & portBYTE_ALIGNMENT_MASK ) ) ) 
++                    /*if( ( xWantedSize + ( portBYTE_ALIGNMENT - ( xWantedSize & portBYTE_ALIGNMENT_MASK ) ) )
+                             > xWantedSize )
+                     {
+                         xWantedSize += ( portBYTE_ALIGNMENT - ( xWantedSize & portBYTE_ALIGNMENT_MASK ) );
+@@ -156,7 +160,7 @@ void * pvPortMalloc( size_t xWantedSize )
+                     else
+                     {
+                         xWantedSize = 0;
+-                    }  
++                    }*/
+                 }
+                 else
+                 {
+@@ -165,7 +169,9 @@ void * pvPortMalloc( size_t xWantedSize )
+             } 
+             else 
+             {
+-                xWantedSize = 0;
++                // CVE-2021-32020
++                mtCOVERAGE_TEST_MARKER();
++                //xWantedSize = 0;
+             }
+ 
+             if( ( xWantedSize > 0 ) && ( xWantedSize <= xFreeBytesRemaining ) )
+diff --git a/stream_buffer.c b/stream_buffer.c
+index 03cfc0615..78102cdcb 100644
+--- a/stream_buffer.c
++++ b/stream_buffer.c
+@@ -217,7 +217,7 @@ static void prvInitialiseNewStreamBuffer( StreamBuffer_t * const pxStreamBuffer,
+ 
+ #if ( configSUPPORT_DYNAMIC_ALLOCATION == 1 )
+ 
+-    StreamBufferHandle_t xStreamBufferGenericCreate( size_t xBufferSizeBytes,
++    StreamBufferHandle_t __attribute__((section(".ramfunc"), aligned)) xStreamBufferGenericCreate( size_t xBufferSizeBytes,
+                                                      size_t xTriggerLevelBytes,
+                                                      BaseType_t xIsMessageBuffer )
+     {
+diff --git a/tasks.c b/tasks.c
+index 3515340b3..db4faf8fc 100644
+--- a/tasks.c
++++ b/tasks.c
+@@ -39,6 +39,10 @@
+ #include "timers.h"
+ #include "stack_macros.h"
+ 
++#include "hp_config.h"
++#include "hp_guard.h"
++#include "hp_measure.h"
++
+ /* Lint e9021, e961 and e750 are suppressed as a MISRA exception justified
+  * because the MPU ports require MPU_WRAPPERS_INCLUDED_FROM_API_FILE to be defined
+  * for the header files above, but not in this file, in order to generate the
+@@ -264,6 +268,10 @@ typedef struct tskTaskControlBlock       /* The old naming convention is used to
+     StackType_t * pxStack;                      /*< Points to the start of the stack. */
+     char pcTaskName[ configMAX_TASK_NAME_LEN ]; /*< Descriptive name given to the task when created.  Facilitates debugging only. */ /*lint !e971 Unqualified char types are allowed for strings and single characters only. */
+ 
++    #if ( configUSE_HP_FRAMEWORK == 1 )
++        BaseType_t uxHPManager;
++    #endif
++
+     #if ( ( portSTACK_GROWTH > 0 ) || ( configRECORD_STACK_HIGH_ADDRESS == 1 ) )
+         StackType_t * pxEndOfStack; /*< Points to the highest valid address for the stack. */
+     #endif
+@@ -913,6 +921,17 @@ static void prvInitialiseNewTask( TaskFunction_t pxTaskCode,
+         pxNewTCB->pcTaskName[ 0 ] = 0x00;
+     }
+ 
++    // add a simple identifier to check if it's the HP task
++    #if ( configUSE_HP_FRAMEWORK == 1 )
++        {
++            if (strcmp(pcName, configHP_TASK_NAME) == 0) {
++                pxNewTCB->uxHPManager = 1;
++            } else {
++                pxNewTCB->uxHPManager = 0;
++            }
++        }
++    #endif
++
+     /* This is used as an array index so must ensure it's not too large.  First
+      * remove the privilege bit if one is present. */
+     if( uxPriority >= ( UBaseType_t ) configMAX_PRIORITIES )
+@@ -2812,7 +2831,7 @@ BaseType_t xTaskIncrementTick( void )
+                      * list. */
+                     prvAddTaskToReadyList( pxTCB );
+ 
+-                    /* A task being unblocked cannot cause an immediate
++                    /* A task being unblocked cannot cause an immediatexNextTaskUnblockTime
+                      * context switch if preemption is turned off. */
+                     #if ( configUSE_PREEMPTION == 1 )
+                         {
+@@ -3009,6 +3028,12 @@ BaseType_t xTaskIncrementTick( void )
+ 
+ void vTaskSwitchContext( void )
+ {
++    uint32_t prev_task_hp = 0;
++    #if (HP_PERFORMANCE_MEASURE_CONTEXT_SWITCH == 1)
++        {
++            hp_measure_start();
++        }
++    #endif
+     if( uxSchedulerSuspended != ( UBaseType_t ) pdFALSE )
+     {
+         /* The scheduler is currently suspended - do not allow a context
+@@ -3058,11 +3083,24 @@ void vTaskSwitchContext( void )
+             }
+         #endif
+ 
++        #if ( configUSE_HP_FRAMEWORK == 1 )
++            {
++                prev_task_hp = pxCurrentTCB->uxHPManager;
++            }
++        #endif
++
+         /* Select a new task to run using either the generic C or port
+          * optimised asm code. */
+         taskSELECT_HIGHEST_PRIORITY_TASK(); /*lint !e9079 void * is used as this macro is used with timers and co-routines too.  Alignment is known to be fine as the type of the pointer stored and retrieved is the same. */
+         traceTASK_SWITCHED_IN();
+ 
++        /* If the next task is a low-priority task, call the hotpatch applicator */
++        #if ( configUSE_HP_FRAMEWORK == 1 )
++            {
++                hp_guard_applicator(pxCurrentTCB->uxHPManager, prev_task_hp);
++            }
++        #endif
++
+         /* After the new task is switched in, update the global errno. */
+         #if ( configUSE_POSIX_ERRNO == 1 )
+             {
+@@ -3080,6 +3118,13 @@ void vTaskSwitchContext( void )
+             }
+         #endif /* configUSE_NEWLIB_REENTRANT */
+     }
++
++    #if (HP_PERFORMANCE_MEASURE_CONTEXT_SWITCH == 1)
++        {
++            hp_measure_stop();
++            hp_measure_output();
++        }
++    #endif
+ }
+ /*-----------------------------------------------------------*/
+ 

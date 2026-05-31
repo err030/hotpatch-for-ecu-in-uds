@@ -1,0 +1,7 @@
+VPATH += $(HP_DIR)/src
+VPATH += $(PATCH_DIR)/crazyflie
+
+PROJ_OBJ += hp_manager.o hp_slot.o hp_guard.o hp_code.o hp_applicator.o hp_measure.o crazyflie-firmware.o
+
+INCLUDES += -I$(HP_DIR)/include
+INCLUDES += -I$(PATCH_DIR)/include
