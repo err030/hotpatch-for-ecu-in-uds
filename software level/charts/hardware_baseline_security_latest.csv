@@ -1,0 +1,12 @@
+case,request_payload,response_payload,expected,passed,note
+reset_default_session,1001,5001,5001,true,matched 5001
+default_session_write_blocked,2E1234AABB,7F2E22,7F2E22,true,matched 7F2E22
+enter_extended_session,1003,5003,5003,true,matched 5003
+extended_write_without_unlock_blocked,2E1234AABB,7F2E33,7F2E33,true,matched 7F2E33
+request_seed_for_wrong_key,2701,67011201,6701xxxx,true,seed=0x1201
+wrong_key_blocked,27020000,7F2733,7F2733,true,matched 7F2733
+request_seed_for_valid_key,2701,67011202,6701xxxx,true,seed=0x1202
+valid_key_unlocks_security,2702B758,6702,6702,true,matched 6702
+authorized_did_write_allowed,2E1234AABB,6E1234,6E1234,true,matched 6E1234
+session_reset_clears_unlock,1001,5001,5001,true,matched 5001
+replay_write_after_reset_blocked,2E1234AABB,7F2E22,7F2E22,true,matched 7F2E22

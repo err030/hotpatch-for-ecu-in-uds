@@ -11,6 +11,7 @@
 #include "mcp2515_driver.h"
 #include "mcp2515_nrfx_spim.h"
 #include "nrf_drv_clock.h"
+#include "nrf_delay.h"
 #include "nrf_gpio.h"
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
@@ -19,6 +20,7 @@
 #include "task.h"
 #include "uds_ecu.h"
 #include "uds_gateway.h"
+#include "uds_link.h"
 
 #ifndef UDS_REQUEST_CAN_ID
 #define UDS_REQUEST_CAN_ID BOARD_UDS_EXTERNAL_REQUEST_CAN_ID
@@ -97,6 +99,15 @@ volatile uint32_t g_board_mcp2515_read_status = 0xFFFFFFFFUL;
 volatile uint32_t g_board_mcp2515_canstat_read_status = 0xFFFFFFFFUL;
 volatile uint32_t g_board_mcp2515_canctrl_read_status = 0xFFFFFFFFUL;
 volatile uint32_t g_board_mcp2515_status_read_status = 0xFFFFFFFFUL;
+volatile uint32_t g_board_startup_test_tx_attempt_count = 0x00000000UL;
+volatile uint32_t g_board_startup_test_tx_ok_count = 0x00000000UL;
+volatile uint32_t g_board_startup_test_tx_last_status = 0xFFFFFFFFUL;
+volatile uint32_t g_board_loopback_init_status = 0xFFFFFFFFUL;
+volatile uint32_t g_board_loopback_tx_status = 0xFFFFFFFFUL;
+volatile uint32_t g_board_loopback_rx_status = 0xFFFFFFFFUL;
+volatile uint32_t g_board_loopback_rx_can_id = 0xFFFFFFFFUL;
+volatile uint32_t g_board_loopback_rx_data_word0 = 0xFFFFFFFFUL;
+volatile uint32_t g_board_loopback_rx_data_word1 = 0xFFFFFFFFUL;
 
 static bool board_wiring_configured(void)
 {
@@ -195,6 +206,57 @@ static void board_diag_runtime_init(void)
     );
     mcp2515_driver_init(&g_mcp2515_driver, &spi_bus);
 
+#if (BOARD_MCP2515_INTERNAL_LOOPBACK_SELF_TEST_ENABLED == 1)
+    {
+        uds_can_frame_t tx_frame;
+        uds_can_frame_t rx_frame;
+
+        g_board_loopback_init_status = (uint32_t)mcp2515_initialize_basic(
+            &g_mcp2515_driver,
+            MCP2515_CNF1,
+            MCP2515_CNF2,
+            MCP2515_CNF3,
+            true
+        );
+
+        tx_frame.arbitration_id = 0x321U;
+        tx_frame.dlc = UDS_CAN_MAX_DATA_LENGTH;
+        tx_frame.data[0] = 0x02U;
+        tx_frame.data[1] = 0x50U;
+        tx_frame.data[2] = 0x03U;
+        tx_frame.data[3] = 0xA5U;
+        tx_frame.data[4] = 0x5AU;
+        tx_frame.data[5] = 0x00U;
+        tx_frame.data[6] = 0x00U;
+        tx_frame.data[7] = 0x00U;
+
+        if (g_board_loopback_init_status == MCP2515_STATUS_OK) {
+            g_board_loopback_tx_status = (uint32_t)mcp2515_send_frame(
+                &g_mcp2515_driver,
+                &tx_frame
+            );
+            nrf_delay_ms(10U);
+            g_board_loopback_rx_status = (uint32_t)mcp2515_try_receive_frame(
+                &g_mcp2515_driver,
+                &rx_frame
+            );
+            if (g_board_loopback_rx_status == MCP2515_STATUS_OK) {
+                g_board_loopback_rx_can_id = rx_frame.arbitration_id;
+                g_board_loopback_rx_data_word0 =
+                    ((uint32_t)rx_frame.data[0] << 24) |
+                    ((uint32_t)rx_frame.data[1] << 16) |
+                    ((uint32_t)rx_frame.data[2] << 8) |
+                    (uint32_t)rx_frame.data[3];
+                g_board_loopback_rx_data_word1 =
+                    ((uint32_t)rx_frame.data[4] << 24) |
+                    ((uint32_t)rx_frame.data[5] << 16) |
+                    ((uint32_t)rx_frame.data[6] << 8) |
+                    (uint32_t)rx_frame.data[7];
+            }
+        }
+    }
+#endif
+
     mcp_status = mcp2515_initialize_basic(
         &g_mcp2515_driver,
         MCP2515_CNF1,
@@ -246,6 +308,43 @@ static void board_diag_runtime_init(void)
     g_board_task_context.delay_context = NULL;
 }
 
+#if (BOARD_CAN_STARTUP_TEST_FRAME_ENABLED == 1)
+static void board_send_startup_test_frame(void)
+{
+    uds_can_frame_t frame;
+    mcp2515_status_t status;
+
+    nrf_delay_ms(BOARD_CAN_STARTUP_TEST_FRAME_DELAY_MS);
+
+    frame.arbitration_id = BOARD_UDS_EXTERNAL_RESPONSE_CAN_ID;
+    frame.dlc = UDS_CAN_MAX_DATA_LENGTH;
+    frame.data[0] = 0x02U;
+    frame.data[1] = 0x50U;
+    frame.data[2] = 0x03U;
+    frame.data[3] = 0x00U;
+    frame.data[4] = 0x00U;
+    frame.data[5] = 0x00U;
+    frame.data[6] = 0x00U;
+    frame.data[7] = 0x00U;
+
+    g_board_startup_test_tx_attempt_count++;
+    status = mcp2515_send_frame(&g_mcp2515_driver, &frame);
+    g_board_startup_test_tx_last_status = (uint32_t)status;
+    if (status == MCP2515_STATUS_OK) {
+        g_board_startup_test_tx_ok_count++;
+        board_log_printf(
+            "[BOOT][CAN] startup test frame queued can_id=0x%03X\n",
+            BOARD_UDS_EXTERNAL_RESPONSE_CAN_ID
+        );
+    } else {
+        board_log_printf(
+            "[BOOT][CAN] startup test frame failed status=%u\n",
+            (unsigned)status
+        );
+    }
+}
+#endif
+
 int main(void)
 {
     board_clock_init();
@@ -289,6 +388,10 @@ int main(void)
         (unsigned long)BOARD_MCP2515_OSCILLATOR_HZ,
         (unsigned)UDS_TASK_PRIORITY
     );
+
+#if (BOARD_CAN_STARTUP_TEST_FRAME_ENABLED == 1)
+    board_send_startup_test_frame();
+#endif
 
     APP_ERROR_CHECK(
         xTaskCreate(

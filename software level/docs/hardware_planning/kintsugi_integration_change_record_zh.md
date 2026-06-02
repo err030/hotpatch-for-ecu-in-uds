@@ -212,6 +212,48 @@
   - `g_board_mcp2515_read_status = 0x00`
 - `0` 对应 `MCP2515_STATUS_OK`，说明 `nRF -> MCP2515` 的 SPI 初始化路径已经跑通。
 - 当前还没有完成 `CANable -> MCP2515 -> gateway -> adjacent ECU -> response` 的 request 测试，原因是当前会话没有权限打开 `/dev/ttyACM2` 并创建 `can0`。
+- 后续主机侧 `can0` 已能创建并发送 `7E0#0210030000000000`，但 `candump` 只看到本地发送帧，没有看到 ECU response。
+- 已在 `mcp2515_can_port.c` 增加运行期诊断变量，用于读取：
+  - poll 次数
+  - RX 成功次数
+  - no-frame 次数
+  - port error 次数
+  - 最近一次 `CANINTF`
+  - 最近一次 `EFLG`
+  - 最近一次 `TEC/REC`
+- 当前基线诊断显示 `UDS task` 正在轮询 MCP2515，最近状态为 `MCP2515_STATUS_NO_FRAME`，`CANINTF=0x00`、`EFLG=0x00`、`TEC=0`、`REC=0`。
+- 已增加一次性启动测试帧：
+  - `BOARD_CAN_STARTUP_TEST_FRAME_ENABLED = 1`
+  - 复位后延迟 1 秒发送 `7E8#0250030000000000`
+  - 用于确认 `MCP2515 -> CANable` 发送方向是否能被 `candump` 看到
+- 启动测试帧已经成功排队，`g_board_startup_test_tx_last_status = 0`。
+- 当前 `MCP2515` 诊断显示 `CANINTF=0xA0`、`EFLG=0x15`、`TEC=0x80`、`REC=0x00`，说明发送侧进入错误状态，核心问题更接近 CAN 物理层、ACK 或 bit timing，而不是 UDS dispatcher。
+- 已分别测试 `8 MHz + 1 Mbps` 和常见 `16 MHz + 1 Mbps` CNF 配置，错误状态未改善。
+- 调试过程中发现 `configUSE_HP_FRAMEWORK=1` 时，FreeRTOS context switch 进入 `hp_guard_applicator()` 后发生 HardFault。
+- 为了先完成 `CAN/UDS` 通讯链路 bring-up，临时将 `hardware level/board_baseline/include/config/FreeRTOSConfig.h` 中的 `configUSE_HP_FRAMEWORK` 设为 `0`。
+- 这不是删除 Kintsugi 组件，而是暂时关闭 context-switch hook；链路稳定后需要单独修复 `hp_guard_applicator()` 在当前 FreeRTOS/nRF 组合下的 MPU/RAM execution 问题，再重新打开。
+- 关闭 hook 后固件不再 HardFault，任务进入 idle/轮询路径；启动测试帧仍然成功排队，但 `MCP2515` 保持 `CANINTF=0xA0`、`EFLG=0x15`、`TEC=0x80`、`REC=0x00`，继续指向 CAN ACK/物理层/bit timing 问题。
+- 之后将固件切到 `500 kbps` bring-up 配置：
+  - `BOARD_CAN_BITRATE_BPS = 500000`
+  - `BOARD_MCP2515_CNF1 = 0x00`
+  - `BOARD_MCP2515_CNF2 = 0xF0`
+  - `BOARD_MCP2515_CNF3 = 0x86`
+- `500 kbps` 下启动测试帧仍然排队成功，但 `CANINTF=0xA0`、`EFLG=0x15`、`TEC=0x80`、`REC=0x00` 未改善。
+- 结论进一步收敛为：`nRF -> MCP2515` SPI 与固件路径可用，当前问题更可能在 CAN 收发器物理层、CANable ACK、H/L 极性、共地、模块工作电平或 CANable 固件/模式。
+- 已增加 `MCP2515` 内部 loopback 自检：
+  - loopback 初始化状态为 `0`
+  - loopback TX 状态为 `0`
+  - loopback RX 状态为 `0`
+  - 收到的 CAN ID 为 `0x321`
+  - 收到的数据为 `02 50 03 A5 5A 00 00 00`
+- 该结果证明 `nRF -> SPI -> MCP2515 controller` 路径正常，问题位于 MCP2515 控制器之后，即外部 CAN transceiver、CANH/CANL/GND、ACK、CANable 模式或物理连接。
+- 根据模块实物信息，确认 CAN transceiver 为 `TJA1051T/3`，晶振为 `8 MHz`。
+- 根据用户提供的可能总线速率，将固件切到 `8 MHz + 250 kbps`：
+  - `BOARD_CAN_BITRATE_BPS = 250000`
+  - `BOARD_MCP2515_CNF1 = 0x00`
+  - `BOARD_MCP2515_CNF2 = 0xAC`
+  - `BOARD_MCP2515_CNF3 = 0x03`
+- `250 kbps` 下内部 loopback 仍然通过，说明 MCP2515 控制器侧配置和 SPI 路径仍然正常；外部启动测试帧仍显示无 ACK，下一步要求 CANable 使用 `slcand -s5` 同速率测试。
 
 ## 后续建议
 

@@ -26,20 +26,24 @@ extern "C" {
 #define BOARD_MCP2515_SPI_FREQUENCY      NRF_SPIM_FREQ_1M
 
 /*
- * Default timing is 1 Mb/s, matching the current CANable test setup.
+ * Default timing is 250 kbps for board bring-up with the observed 8 MHz
+ * MCP2515 crystal. 1 Mb/s and 500 kbps were tested earlier and still produced
+ * transmit errors, so this profile matches the likely CANable test bitrate.
  *
  * Check the metal crystal can on the MCP2515 module. It is usually marked
- * "8.000" or "16.000". The active profile below assumes a 16 MHz module.
- * If the module is 8 MHz, use the 8 MHz profile values instead.
+ * "8.000" or "16.000". The active profile below assumes an 8 MHz module.
  */
-#define BOARD_MCP2515_OSCILLATOR_HZ 16000000UL
-#define BOARD_CAN_BITRATE_BPS       1000000UL
+#define BOARD_MCP2515_OSCILLATOR_HZ 8000000UL
+#define BOARD_CAN_BITRATE_BPS       250000UL
 #define BOARD_MCP2515_CNF1          0x00U
-#define BOARD_MCP2515_CNF2          0x90U
-#define BOARD_MCP2515_CNF3          0x02U
+#define BOARD_MCP2515_CNF2          0xACU
+#define BOARD_MCP2515_CNF3          0x03U
 
-/* Alternative 8 MHz / 1 Mb/s profile, if the module crystal is marked 8.000:
- *   CNF1 = 0x00, CNF2 = 0x80, CNF3 = 0x00
+/* Alternative 8 MHz / 500 kbps profile:
+ *   CNF1 = 0x00, CNF2 = 0x90, CNF3 = 0x82
+ *
+ * Alternative 16 MHz / 500 kbps profile:
+ *   CNF1 = 0x00, CNF2 = 0xF0, CNF3 = 0x86
  */
 
 #define BOARD_UDS_EXTERNAL_REQUEST_CAN_ID  0x7E0U
@@ -47,6 +51,10 @@ extern "C" {
 #define BOARD_UDS_INTERNAL_REQUEST_CAN_ID  0x7E1U
 #define BOARD_UDS_INTERNAL_RESPONSE_CAN_ID 0x7E9U
 #define BOARD_UDS_GATEWAY_MODE             UDS_GATEWAY_MODE_MISCONFIGURED
+
+#define BOARD_CAN_STARTUP_TEST_FRAME_ENABLED 1
+#define BOARD_CAN_STARTUP_TEST_FRAME_DELAY_MS 1000U
+#define BOARD_MCP2515_INTERNAL_LOOPBACK_SELF_TEST_ENABLED 1
 
 #ifdef __cplusplus
 }

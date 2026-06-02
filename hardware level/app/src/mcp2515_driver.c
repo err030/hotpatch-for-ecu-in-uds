@@ -319,8 +319,8 @@ mcp2515_status_t mcp2515_try_receive_frame(
 )
 {
     uint8_t intf = 0U;
-    uint8_t tx_data[14] = {0U};
-    uint8_t rx_data[14] = {0U};
+    uint8_t tx_data[15] = {0U};
+    uint8_t rx_data[15] = {0U};
     uint8_t dlc;
     mcp2515_status_t status;
 
@@ -363,7 +363,7 @@ mcp2515_status_t mcp2515_send_frame(
     const uds_can_frame_t *frame
 )
 {
-    uint8_t tx_data[14] = {0U};
+    uint8_t tx_data[15] = {0U};
     uint8_t sidh;
     uint8_t sidl;
     mcp2515_status_t status;

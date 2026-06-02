@@ -104,7 +104,8 @@
 /* Tickless idle/low power functionality. */
 
 /* Hotpatching Framework */
-#define configUSE_HP_FRAMEWORK                                                    1
+/* Disabled during CAN/UDS board bring-up. Re-enable after the communication path is stable. */
+#define configUSE_HP_FRAMEWORK                                                    0
 #define configHP_TASK_NAME                                                        "HP_MANAGER"
 
 /* Define to trap errors during development. */

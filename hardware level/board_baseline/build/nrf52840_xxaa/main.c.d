@@ -79,6 +79,7 @@ build/nrf52840_xxaa/main.c.o: src/main.c \
  ../../external/sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/include/nrfx_clock.h \
  ../../external/sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/hal/nrf_clock.h \
  ../../external/sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/include/nrfx_power_clock.h \
+ ../../external/sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/delay/nrf_delay.h \
  ../../external/sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/log/nrf_log.h \
  ../../external/sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/sdk_common.h \
  /usr/include/newlib/string.h /usr/include/newlib/sys/string.h \
@@ -100,7 +101,7 @@ build/nrf52840_xxaa/main.c.o: src/main.c \
  ../../external/sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/log/nrf_log_default_backends.h \
  ../../external/rtos/FreeRTOS-Kernel/include/task.h \
  ../../external/rtos/FreeRTOS-Kernel/include/list.h \
- ../app/include/uds_ecu.h
+ ../app/include/uds_ecu.h ../app/include/uds_link.h
 /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h:
 /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h:
 ../../external/rtos/FreeRTOS-Kernel/include/FreeRTOS.h:
@@ -197,6 +198,7 @@ include/config/sdk_config.h:
 ../../external/sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/include/nrfx_clock.h:
 ../../external/sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/hal/nrf_clock.h:
 ../../external/sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/include/nrfx_power_clock.h:
+../../external/sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/delay/nrf_delay.h:
 ../../external/sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/log/nrf_log.h:
 ../../external/sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/util/sdk_common.h:
 /usr/include/newlib/string.h:
@@ -221,3 +223,4 @@ include/config/sdk_config.h:
 ../../external/rtos/FreeRTOS-Kernel/include/task.h:
 ../../external/rtos/FreeRTOS-Kernel/include/list.h:
 ../app/include/uds_ecu.h:
+../app/include/uds_link.h:
