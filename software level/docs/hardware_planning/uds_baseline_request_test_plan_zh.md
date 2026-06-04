@@ -47,13 +47,15 @@ cansend can0 7E0#0210030000000000
 预期响应：
 
 ```text
-7E8#0250030000000000
+7E8#06500300321388
 ```
 
 含义：
 
 - `0x10 0x03`：请求进入 extended diagnostic session
 - `0x50 0x03`：正响应
+- `0x0032`：P2 server max，50 ms
+- `0x1388`：P2* server max，5000 ms
 
 ### 2. 请求 seed
 
@@ -172,10 +174,16 @@ cansend can0 7E0#0427020000000000
 预期响应：
 
 ```text
-7E8#037F273300000000
+7E8#037F273500000000
 ```
 
 连续错误达到阈值后会进入短暂 lockout。
+
+含义：
+
+- `0x35`：invalid key
+- 达到错误阈值时返回 `0x36`：exceed number of attempts
+- lockout 未结束时返回 `0x37`：required time delay not expired
 
 ### 4. replay write
 
@@ -227,7 +235,9 @@ python3 "software level/tools/uds_security_baseline_test.py" --interface can0
 - reset 到 default session
 - default session 下直接 `0x2E` 写入，期望 `0x7F 0x2E 0x22`
 - extended session 下未解锁 `0x2E` 写入，期望 `0x7F 0x2E 0x33`
-- 请求 seed 后发送错误 key，期望 `0x7F 0x27 0x33`
+- 请求 seed 后发送错误 key，期望 `0x7F 0x27 0x35`
+- 第二次错误 key 触发 attempt limit，期望 `0x7F 0x27 0x36`
+- lockout 期间请求 seed，期望 `0x7F 0x27 0x37`
 - 请求 seed 后计算 demo key，期望 `0x67 0x02`
 - 解锁后合法 DID write，期望 `0x6E 0x12 0x34`
 - session reset 后重放同一个 DID write，期望再次被拒绝
@@ -239,6 +249,38 @@ software level/charts/hardware_baseline_security_latest.csv
 ```
 
 这个 CSV 可作为“不加入 hotpatch 时 baseline 拦截结果”的实验记录。
+
+## CVE-derived UDS 攻击测试
+
+选择依据见：
+
+```text
+software level/docs/hardware_planning/cve_attack_selection_for_uds_hotpatch_zh.md
+```
+
+新增脚本：
+
+```text
+software level/tools/cve_derived_uds_attack_test.py
+```
+
+运行：
+
+```bash
+python3 "software level/tools/cve_derived_uds_attack_test.py" --interface can0
+```
+
+当前测试不是声称本 ECU 真实存在对应 CVE，而是把 Kintsugi real-world CVE 实验中的输入校验 bug class 映射到本项目 UDS-over-CAN 攻击面：
+
+- `CVE-2020-17443-derived`：短报文长度检查，发送缺少 subfunction 的 `0x10`
+- `CVE-2018-16603-derived`：短底层 packet 导致越界访问，发送 PCI length 大于实际 CAN DLC 的 malformed single frame
+- `CVE-2018-16524-derived`：选项长度越界检查，映射为授权后 `0x2E DID Write` 的零长度 data
+
+结果会写入：
+
+```text
+software level/charts/cve_derived_uds_attack_latest.csv
+```
 
 ## Gateway 模式
 

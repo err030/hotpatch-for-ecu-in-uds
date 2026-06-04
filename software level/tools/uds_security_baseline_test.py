@@ -26,6 +26,8 @@ CAN_SFF_MASK = 0x000007FF
 DEFAULT_REQUEST_ID = 0x7E0
 DEFAULT_RESPONSE_ID = 0x7E8
 UDS_SEED_MASK = 0xA55A
+SESSION_DEFAULT_RESPONSE = bytes([0x50, 0x01, 0x00, 0x32, 0x13, 0x88])
+SESSION_EXTENDED_RESPONSE = bytes([0x50, 0x03, 0x00, 0x32, 0x13, 0x88])
 
 
 @dataclass(frozen=True)
@@ -226,8 +228,8 @@ def main() -> int:
                 args,
                 "reset_default_session",
                 bytes([0x10, 0x01]),
-                "5001",
-                expect_payload(bytes([0x50, 0x01])),
+                "500100321388",
+                expect_payload(SESSION_DEFAULT_RESPONSE),
             )
         )
         results.append(
@@ -246,8 +248,8 @@ def main() -> int:
                 args,
                 "enter_extended_session",
                 bytes([0x10, 0x03]),
-                "5003",
-                expect_payload(bytes([0x50, 0x03])),
+                "500300321388",
+                expect_payload(SESSION_EXTENDED_RESPONSE),
             )
         )
         results.append(
@@ -276,8 +278,58 @@ def main() -> int:
                 args,
                 "wrong_key_blocked",
                 bytes([0x27, 0x02, 0x00, 0x00]),
-                "7F2733",
-                expect_payload(bytes([0x7F, 0x27, 0x33])),
+                "7F2735",
+                expect_payload(bytes([0x7F, 0x27, 0x35])),
+            )
+        )
+        results.append(
+            run_case(
+                can_socket,
+                args,
+                "request_seed_for_attempt_limit",
+                bytes([0x27, 0x01]),
+                "6701xxxx",
+                expect_seed,
+            )
+        )
+        results.append(
+            run_case(
+                can_socket,
+                args,
+                "second_wrong_key_triggers_lockout",
+                bytes([0x27, 0x02, 0x00, 0x00]),
+                "7F2736",
+                expect_payload(bytes([0x7F, 0x27, 0x36])),
+            )
+        )
+        results.append(
+            run_case(
+                can_socket,
+                args,
+                "seed_request_during_lockout_blocked",
+                bytes([0x27, 0x01]),
+                "7F2737",
+                expect_payload(bytes([0x7F, 0x27, 0x37])),
+            )
+        )
+        results.append(
+            run_case(
+                can_socket,
+                args,
+                "lockout_recovery_tick_1",
+                bytes([0x10, 0x03]),
+                "500300321388",
+                expect_payload(SESSION_EXTENDED_RESPONSE),
+            )
+        )
+        results.append(
+            run_case(
+                can_socket,
+                args,
+                "lockout_recovery_tick_2",
+                bytes([0x10, 0x03]),
+                "500300321388",
+                expect_payload(SESSION_EXTENDED_RESPONSE),
             )
         )
         seed_result = run_case(
@@ -323,8 +375,8 @@ def main() -> int:
                 args,
                 "session_reset_clears_unlock",
                 bytes([0x10, 0x01]),
-                "5001",
-                expect_payload(bytes([0x50, 0x01])),
+                "500100321388",
+                expect_payload(SESSION_DEFAULT_RESPONSE),
             )
         )
         results.append(

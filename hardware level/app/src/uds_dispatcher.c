@@ -10,6 +10,9 @@ static void uds_config_table_init_default(uds_config_table_t *table)
     table->entries[0].writable = true;
     table->entries[0].requires_extended_session = true;
     table->entries[0].requires_security_unlock = true;
+    table->entries[0].required_security_level = UDS_SECURITY_LEVEL_CONFIG_WRITE;
+    table->entries[0].min_write_length = 1U;
+    table->entries[0].max_write_length = 4U;
 }
 
 static uds_config_entry_t *uds_config_table_find_mutable(
@@ -143,9 +146,42 @@ static void uds_replay_guard_reset(uds_replay_guard_t *guard)
     memset(guard, 0, sizeof(*guard));
 }
 
-static uint16_t uds_expected_key_from_seed(uint16_t seed)
+static uint16_t uds_expected_key_from_seed(uint16_t seed, uint8_t security_level)
 {
+    (void)security_level;
     return (uint16_t)(seed ^ UDS_SEED_MASK);
+}
+
+static bool uds_security_access_seed_subfunction(uint8_t subfunction)
+{
+    return (subfunction & 0x01U) == 0x01U;
+}
+
+static uint8_t uds_security_access_level_from_subfunction(uint8_t subfunction)
+{
+    if (uds_security_access_seed_subfunction(subfunction)) {
+        return (uint8_t)((subfunction + 1U) >> 1);
+    }
+
+    return (uint8_t)(subfunction >> 1);
+}
+
+static bool uds_security_access_level_supported(uint8_t security_level)
+{
+    return security_level == UDS_SECURITY_LEVEL_CONFIG_WRITE;
+}
+
+static void uds_session_state_clear_unlock(uds_session_state_t *state)
+{
+    if (state == NULL) {
+        return;
+    }
+
+    if (state->security_unlocked || state->security_level != 0U) {
+        state->unlock_generation += 1U;
+    }
+    state->security_unlocked = false;
+    state->security_level = 0U;
 }
 
 static void uds_dispatcher_init_common(
@@ -202,7 +238,7 @@ void uds_dispatcher_apply_strict_patch(uds_dispatcher_t *dispatcher)
     dispatcher->policy.clear_unlock_on_failed_key = true;
     dispatcher->policy.clear_unlock_on_session_change = true;
     dispatcher->policy.allow_replay_without_unlock = false;
-    dispatcher->session_state.security_unlocked = false;
+    uds_session_state_clear_unlock(&dispatcher->session_state);
     dispatcher->session_state.pending_seed_valid = false;
     uds_replay_guard_reset(&dispatcher->replay_guard);
 }
@@ -247,27 +283,36 @@ static void uds_handle_session_control(
     uds_response_t *response
 )
 {
-    uint8_t data[1];
+    uint8_t requested_session;
+    uint16_t p2_ms = UDS_SESSION_P2_SERVER_MAX_MS;
+    uint16_t p2_star_ms = UDS_SESSION_P2_STAR_SERVER_MAX_MS;
+    uint8_t data[5];
 
     if (!request->has_subfunction) {
         uds_response_make_negative(response, request->sid, NRC_INCORRECT_MESSAGE_LENGTH);
         return;
     }
-    if (request->subfunction != SESSION_DEFAULT && request->subfunction != SESSION_EXTENDED) {
+
+    requested_session = (uint8_t)(request->subfunction & 0x7FU);
+    if (requested_session != SESSION_DEFAULT && requested_session != SESSION_EXTENDED) {
         uds_response_make_negative(response, request->sid, NRC_SUBFUNCTION_NOT_SUPPORTED);
         return;
     }
 
-    if (dispatcher->session_state.session != request->subfunction) {
+    if (dispatcher->session_state.session != requested_session) {
         dispatcher->session_state.session_generation += 1U;
     }
-    dispatcher->session_state.session = request->subfunction;
+    dispatcher->session_state.session = requested_session;
     if (dispatcher->policy.clear_unlock_on_session_change) {
-        dispatcher->session_state.security_unlocked = false;
+        uds_session_state_clear_unlock(&dispatcher->session_state);
     }
     dispatcher->session_state.pending_seed_valid = false;
-    data[0] = request->subfunction;
-    uds_response_make_positive(response, request->sid, data, 1U);
+    data[0] = requested_session;
+    data[1] = (uint8_t)(p2_ms >> 8);
+    data[2] = (uint8_t)(p2_ms & 0xFFU);
+    data[3] = (uint8_t)(p2_star_ms >> 8);
+    data[4] = (uint8_t)(p2_star_ms & 0xFFU);
+    uds_response_make_positive(response, request->sid, data, 5U);
 }
 
 static void uds_handle_security_access(
@@ -279,18 +324,28 @@ static void uds_handle_security_access(
     uint16_t expected_key;
     uint16_t supplied_key;
     uint16_t seed_value;
+    uint8_t requested_subfunction;
+    uint8_t security_level;
     uint8_t data[3];
 
     if (!request->has_subfunction) {
         uds_response_make_negative(response, request->sid, NRC_INCORRECT_MESSAGE_LENGTH);
         return;
     }
-    if (dispatcher->session_state.lockout_ticks_remaining > 0U) {
-        uds_response_make_negative(response, request->sid, NRC_SECURITY_ACCESS_DENIED);
+
+    requested_subfunction = (uint8_t)(request->subfunction & 0x7FU);
+    security_level = uds_security_access_level_from_subfunction(requested_subfunction);
+    if (!uds_security_access_level_supported(security_level)) {
+        uds_response_make_negative(response, request->sid, NRC_SUBFUNCTION_NOT_SUPPORTED);
         return;
     }
 
-    if (request->subfunction == 0x01U) {
+    if (dispatcher->session_state.lockout_ticks_remaining > 0U) {
+        uds_response_make_negative(response, request->sid, NRC_REQUIRED_TIME_DELAY_NOT_EXPIRED);
+        return;
+    }
+
+    if (uds_security_access_seed_subfunction(requested_subfunction)) {
         if (dispatcher->session_state.session != SESSION_EXTENDED) {
             uds_response_make_negative(response, request->sid, NRC_CONDITIONS_NOT_CORRECT);
             return;
@@ -299,15 +354,16 @@ static void uds_handle_security_access(
         dispatcher->session_state.seed_counter += 1U;
         seed_value = (uint16_t)(0x1200U + dispatcher->session_state.seed_counter);
         dispatcher->session_state.pending_seed = seed_value;
+        dispatcher->session_state.pending_seed_level = security_level;
         dispatcher->session_state.pending_seed_valid = true;
-        data[0] = 0x01U;
+        data[0] = requested_subfunction;
         data[1] = (uint8_t)(seed_value >> 8);
         data[2] = (uint8_t)(seed_value & 0xFFU);
         uds_response_make_positive(response, request->sid, data, 3U);
         return;
     }
 
-    if (request->subfunction == 0x02U) {
+    if (!uds_security_access_seed_subfunction(requested_subfunction)) {
         if (dispatcher->session_state.session != SESSION_EXTENDED) {
             uds_response_make_negative(response, request->sid, NRC_CONDITIONS_NOT_CORRECT);
             return;
@@ -316,38 +372,47 @@ static void uds_handle_security_access(
             uds_response_make_negative(response, request->sid, NRC_REQUEST_SEQUENCE_ERROR);
             return;
         }
+        if (dispatcher->session_state.pending_seed_level != security_level) {
+            dispatcher->session_state.pending_seed_valid = false;
+            uds_response_make_negative(response, request->sid, NRC_REQUEST_SEQUENCE_ERROR);
+            return;
+        }
         if (request->data_length != 2U) {
             uds_response_make_negative(response, request->sid, NRC_INCORRECT_MESSAGE_LENGTH);
             return;
         }
 
-        expected_key = uds_expected_key_from_seed(dispatcher->session_state.pending_seed);
+        expected_key = uds_expected_key_from_seed(
+            dispatcher->session_state.pending_seed,
+            security_level
+        );
         supplied_key = (uint16_t)(((uint16_t)request->data[0] << 8) | request->data[1]);
 
         if (supplied_key != expected_key) {
             if (dispatcher->policy.clear_unlock_on_failed_key) {
-                dispatcher->session_state.security_unlocked = false;
+                uds_session_state_clear_unlock(&dispatcher->session_state);
             }
             dispatcher->session_state.failed_attempts += 1U;
             dispatcher->session_state.pending_seed_valid = false;
             if (dispatcher->session_state.failed_attempts >= dispatcher->policy.max_failed_attempts) {
                 dispatcher->session_state.lockout_ticks_remaining =
                     dispatcher->policy.lockout_duration_ticks;
+                uds_response_make_negative(response, request->sid, NRC_EXCEED_NUMBER_OF_ATTEMPTS);
+                return;
             }
-            uds_response_make_negative(response, request->sid, NRC_SECURITY_ACCESS_DENIED);
+            uds_response_make_negative(response, request->sid, NRC_INVALID_KEY);
             return;
         }
 
         dispatcher->session_state.security_unlocked = true;
+        dispatcher->session_state.security_level = security_level;
         dispatcher->session_state.failed_attempts = 0U;
         dispatcher->session_state.pending_seed_valid = false;
         dispatcher->session_state.unlock_generation += 1U;
-        data[0] = 0x02U;
+        data[0] = requested_subfunction;
         uds_response_make_positive(response, request->sid, data, 1U);
         return;
     }
-
-    uds_response_make_negative(response, request->sid, NRC_SUBFUNCTION_NOT_SUPPORTED);
 }
 
 static void uds_handle_write_data_by_identifier(
@@ -378,7 +443,8 @@ static void uds_handle_write_data_by_identifier(
 
     if (entry->requires_security_unlock &&
         dispatcher->policy.write_requires_unlock &&
-        !dispatcher->session_state.security_unlocked) {
+        (!dispatcher->session_state.security_unlocked ||
+         dispatcher->session_state.security_level < entry->required_security_level)) {
         if (dispatcher->policy.allow_replay_without_unlock) {
             replay_allowed = uds_replay_guard_matches_locked_write(
                 &dispatcher->replay_guard,
@@ -393,6 +459,12 @@ static void uds_handle_write_data_by_identifier(
             uds_response_make_negative(response, request->sid, NRC_SECURITY_ACCESS_DENIED);
             return;
         }
+    }
+
+    if (request->data_length < entry->min_write_length ||
+        request->data_length > entry->max_write_length) {
+        uds_response_make_negative(response, request->sid, NRC_INCORRECT_MESSAGE_LENGTH);
+        return;
     }
 
     if (!uds_config_entry_write(entry, request->data, request->data_length)) {

@@ -12,6 +12,9 @@ extern "C" {
 
 #define UDS_VALID_WRITE_DID 0x1234U
 #define UDS_SEED_MASK 0xA55AU
+#define UDS_SECURITY_LEVEL_CONFIG_WRITE 0x01U
+#define UDS_SESSION_P2_SERVER_MAX_MS 50U
+#define UDS_SESSION_P2_STAR_SERVER_MAX_MS 5000U
 #define UDS_CONFIG_TABLE_MAX_ENTRIES 8U
 #define UDS_CONFIG_VALUE_MAX_LENGTH 16U
 
@@ -28,6 +31,9 @@ typedef struct {
     bool writable;
     bool requires_extended_session;
     bool requires_security_unlock;
+    uint8_t required_security_level;
+    uint8_t min_write_length;
+    uint8_t max_write_length;
     uint8_t value_length;
     uint8_t value[UDS_CONFIG_VALUE_MAX_LENGTH];
 } uds_config_entry_t;
@@ -40,7 +46,9 @@ typedef struct {
 typedef struct {
     uint8_t session;
     bool security_unlocked;
+    uint8_t security_level;
     bool pending_seed_valid;
+    uint8_t pending_seed_level;
     uint16_t pending_seed;
     uint16_t seed_counter;
     uint8_t failed_attempts;
