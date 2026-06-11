@@ -39,10 +39,12 @@ def build_protocol_payload_corpus(seed: int = 20260503) -> tuple[PayloadFuzzCase
     base_cases = [
         PayloadFuzzCase("empty", b""),
         PayloadFuzzCase("short_session", b"\x10"),
+        PayloadFuzzCase("short_read", b"\x22\x12"),
         PayloadFuzzCase("short_security", b"\x27"),
         PayloadFuzzCase("short_write", b"\x2E\x12"),
         PayloadFuzzCase("unknown_sid", b"\x99\x00"),
         PayloadFuzzCase("valid_session", b"\x10\x03"),
+        PayloadFuzzCase("valid_read", b"\x22\x12\x34"),
         PayloadFuzzCase("valid_seed_request", b"\x27\x01"),
         PayloadFuzzCase("valid_write", b"\x2E\x12\x34\xAA"),
     ]

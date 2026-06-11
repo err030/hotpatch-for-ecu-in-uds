@@ -7,6 +7,7 @@ import unittest
 from src.hotpatch_uds.protocol import (
     NEGATIVE_RESPONSE_SID,
     SID_DIAGNOSTIC_SESSION_CONTROL,
+    SID_READ_DATA_BY_IDENTIFIER,
     SID_WRITE_DATA_BY_IDENTIFIER,
     UDSRequest,
     UDSResponse,
@@ -24,6 +25,14 @@ class ProtocolTests(unittest.TestCase):
         self.assertEqual(request.sid, SID_WRITE_DATA_BY_IDENTIFIER)
         self.assertEqual(request.did, 0x1234)
         self.assertEqual(request.data, b"\xAA\xBB")
+
+    def test_read_request_roundtrip(self) -> None:
+        request = UDSRequest(sid=SID_READ_DATA_BY_IDENTIFIER, did=0x1001)
+        parsed = UDSRequest.from_payload(request.to_payload())
+
+        self.assertEqual(request.to_payload(), b"\x22\x10\x01")
+        self.assertEqual(parsed.sid, SID_READ_DATA_BY_IDENTIFIER)
+        self.assertEqual(parsed.did, 0x1001)
 
     def test_negative_response_roundtrip(self) -> None:
         response = negative_response(0x2E, 0x33)

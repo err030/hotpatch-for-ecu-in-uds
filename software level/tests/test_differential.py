@@ -37,7 +37,7 @@ class DifferentialTests(unittest.TestCase):
     def test_extended_default_suite_size(self) -> None:
         cases = default_differential_cases()
 
-        self.assertGreaterEqual(len(cases), 6)
+        self.assertGreaterEqual(len(cases), 8)
 
     def test_differential_export_formats_include_known_case(self) -> None:
         comparisons = run_default_differential_suite()

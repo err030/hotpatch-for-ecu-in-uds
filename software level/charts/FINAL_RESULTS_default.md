@@ -11,6 +11,18 @@
 - `python-can socketcan + can-isotp + udsoncan on vcan0`: passed
   - validated on the Ubuntu VM with `tests.test_pythoncan`
 
+## Hardware Baseline Validation
+
+- `nRF52840 + FreeRTOS + MCP2515` baseline: flashed, verified and reset through J-Link
+- `CANable2.0 slcan + can0` security baseline: passed
+  - validated by `software level/tools/uds_security_baseline_test.py`
+  - result: `19/19` checks passed
+  - artifact: `software level/charts/hardware_baseline_security_latest.csv`
+- CVE-derived UDS attack checks over `can0`: passed
+  - validated by `software level/tools/cve_derived_uds_attack_test.py`
+  - result: `6/6` checks passed
+  - artifact: `software level/charts/cve_derived_uds_attack_latest.csv`
+
 ## Hotpatch Evaluation
 
 - OTA-only cumulative exposure window: `6605` min
@@ -32,5 +44,6 @@
 ## Interpretation
 
 - The software-level model now spans semantic UDS behavior, CAN/ISO-TP/UDS stack integration, and OS-level `vcan0` communication.
+- The hardware baseline now validates the same UDS/security rules over CANable2.0 / `can0` against the nRF52840 board.
 - The current data supports the thesis claim that a Kintsugi-style hotpatch can reduce the OTA pre-update exposure window at modest software-level cost.
-- The next evidence step is to execute the formal `python-can socketcan` tests and then carry the same metrics into the hardware/RTOS phase.
+- The next evidence step is to carry the validated baseline into secure/demo board profiles, C-side host tests, full ISO-TP decisions, and the hardware/RTOS hotpatch phase.

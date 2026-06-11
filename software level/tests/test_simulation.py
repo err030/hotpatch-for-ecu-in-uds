@@ -4,7 +4,13 @@
 
 import unittest
 
-from src.hotpatch_uds.ecu import PatchableECU, PatchedECU, VulnerableECU
+from src.hotpatch_uds.ecu import (
+    PatchableECU,
+    PatchedECU,
+    READ_ONLY_STATUS_DID,
+    READ_ONLY_STATUS_VALUE,
+    VulnerableECU,
+)
 from src.hotpatch_uds.scenarios import (
     build_default_client_and_server,
     build_gateway_routed_client_and_server,
@@ -40,10 +46,38 @@ class SimulationTests(unittest.TestCase):
         seed_result = client.request_seed()
         key = derive_key_from_seed(seed_result.response)
         client.send_key(key)
-        write_result = client.write_data_by_identifier(0x1234, b"\x02\x03\x04\x05\x06")
+        write_result = client.write_data_by_identifier(0x1234, b"\x02\x03\x04\x05")
 
         self.assertTrue(write_result.response.positive)
         self.assertEqual(write_result.response.sid, 0x6E)
+
+    def test_read_back_written_did(self) -> None:
+        server = MockEcuServer(PatchedECU())
+        client = build_default_client_and_server(server)
+
+        client.change_to_extended_session()
+        seed_result = client.request_seed()
+        key = derive_key_from_seed(seed_result.response)
+        client.send_key(key)
+        client.write_data_by_identifier(0x1234, b"\xAA\xBB")
+        read_result = client.read_data_by_identifier(0x1234)
+
+        self.assertTrue(read_result.response.positive)
+        self.assertEqual(read_result.response.sid, 0x62)
+        self.assertEqual(read_result.response.data, b"\x12\x34\xAA\xBB")
+
+    def test_read_only_status_did_is_readable(self) -> None:
+        server = MockEcuServer(PatchedECU())
+        client = build_default_client_and_server(server)
+
+        read_result = client.read_data_by_identifier(READ_ONLY_STATUS_DID)
+
+        self.assertTrue(read_result.response.positive)
+        self.assertEqual(read_result.response.sid, 0x62)
+        self.assertEqual(
+            read_result.response.data,
+            READ_ONLY_STATUS_DID.to_bytes(2, "big") + READ_ONLY_STATUS_VALUE,
+        )
 
     def test_runtime_patch_changes_behavior(self) -> None:
         server = MockEcuServer(PatchableECU())

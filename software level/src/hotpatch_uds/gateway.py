@@ -20,6 +20,7 @@ from .bus import InMemoryCanBus
 from .isotp import CanFrame, FRAME_TYPE_FIRST, FRAME_TYPE_SINGLE
 from .protocol import (
     SID_DIAGNOSTIC_SESSION_CONTROL,
+    SID_READ_DATA_BY_IDENTIFIER,
     SID_SECURITY_ACCESS,
     SID_WRITE_DATA_BY_IDENTIFIER,
 )
@@ -47,11 +48,13 @@ def gateway_allowed_services(mode: str) -> set[int] | None:
     if mode == GATEWAY_MODE_RESTRICTED:
         return {
             SID_DIAGNOSTIC_SESSION_CONTROL,
+            SID_READ_DATA_BY_IDENTIFIER,
             SID_SECURITY_ACCESS,
         }
     if mode == GATEWAY_MODE_MISCONFIGURED:
         return {
             SID_DIAGNOSTIC_SESSION_CONTROL,
+            SID_READ_DATA_BY_IDENTIFIER,
             SID_SECURITY_ACCESS,
             SID_WRITE_DATA_BY_IDENTIFIER,
         }

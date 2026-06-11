@@ -1,6 +1,6 @@
 # hotpatch-for-ecu-in-uds
 
-这是一个面向 bachelor thesis 的 `software-first` 仿真仓库。当前目标是先把 UDS attack flow、mock ECU、简化 ISO-TP 和 runtime patch 行为在软件里跑通，并无硬件部分，全由python模拟。
+这是一个面向 bachelor thesis 的 `software-first` 仿真和硬件 baseline 仓库。当前主线是先在 Python 中稳定复现 UDS attack flow、mock ECU、简化 ISO-TP 和 runtime patch 行为，再把同一套安全语义推进到 `nRF52840 + FreeRTOS + MCP2515` 的板级 baseline。
 
 ## 当前完成了什么
 
@@ -8,7 +8,7 @@
 
 - 标准风格的 UDS request/response 编码与解析
 - 带 session / unlock / failed attempts / lockout / periodic tick 的 mock ECU 状态机
-- `0x10 -> 0x27 -> 0x2E` 服务链
+- `0x10 -> 0x27 -> 0x2E` 服务链，以及用于读回验证的 `0x22`
 - `tester -> gateway -> target ECU` 的 routed diagnostics 路径
 - `open / restricted / misconfigured` 三种 gateway 策略基础模型
 - vulnerable / patched / patchable 以及多种授权缺陷 ECU 行为
@@ -28,6 +28,9 @@
 - 系统化 fuzzing：parser、state sequence、ISO-TP 异常序号 corpus
 - 多组攻击场景与负面测试
 - 自动化测试
+- 硬件侧 `nRF52840 + FreeRTOS + MCP2515` baseline 工程
+- 硬件侧 gateway-routed strict ECU：`0x10 / 0x22 / 0x27 / 0x2E`
+- 硬件侧 baseline security 脚本和 CVE-derived UDS attack 脚本
 
 ## 当前目录结构
 
@@ -133,6 +136,10 @@ sudo ip link set up vcan0
 python3 -m unittest tests.test_socketcan tests.test_pythoncan -v
 ```
 
+`vcan0` 只用于主机软件回归和 CI 式验证，不会把 frame 发到 CANable2.0。
+真实 CANable2.0 / nRF52840 baseline 测试使用 `can0`，对应脚本默认也是
+`--interface can0`。
+
 如果想在自己的脚本里直接把当前 mock ECU 挂到第三方协议栈，可以使用：
 
 ```python
@@ -186,14 +193,23 @@ python3 charts/export_hotpatch_evaluation.py
 这版仍以 `software-first simulation` 为主，但现在已经可以：
 
 - 在 `in-memory` backend 上稳定复现实验语义
-- 在可选的 `python-can + can-isotp + udsoncan` backend 上复用同一套 ECU / gateway
-- 在 `socketcan + vcan0` 上推进到 OS 级 CAN 层
+- 在 `python-can + can-isotp + udsoncan` backend 上复用同一套 ECU / gateway
+- 在 `socketcan + vcan0` 上完成 OS 级 CAN 层回归验证
 
-当前还没有接入：
+当前硬件侧已经接入：
 
-- 真实 CANable / MCP2515 / nRF52840
+- `hardware level/board_baseline/`：nRF52840 FreeRTOS 工程、MCP2515 SPI/CAN、RTT 日志、gateway path
+- `hardware level/app/`：UDS protocol/link/dispatcher/ECU/gateway/task/runtime 模块
+- `hardware level/third_party/kintsugi_minimal/` 和 `kintsugi/`：Kintsugi 运行时组件与 hotpatch linker sections
+- CANable2.0 / `can0` 到 nRF52840 baseline 的真实 UDS security 和 CVE-derived attack 测试记录
+
+当前还没有完成：
+
 - 外部框架级差分测试
-- 真实硬件上的 Kintsugi 式 guard / MPU / context-switch integration
+- 完整 ISO-TP 多帧 ECU 侧重组与 flow-control
+- secure/demo 两套 board profile 和 profile 化 gateway 配置
+- C dispatcher host 单元测试 / property 测试
+- 真实硬件上的 Kintsugi 式 guard / MPU / context-switch integration 闭环
 - 真正的 RTOS task context / IRQ preemption 级 hotpatch 应用
 
 这版的完成内容为：
@@ -201,7 +217,8 @@ python3 charts/export_hotpatch_evaluation.py
 1. 先把 gateway-routed UDS 行为和攻击链解释清楚
 2. 先把 OTA-only 与 hotpatch-first 的 fleet-level 差异固定下来
 3. 再把 transport、client 和 gateway 渐进式接到更真实的实现
-4. 再用 Kintsugi 风格的软件模型评估 hotpatch 是否理论上缩短 OTA 前 exposure window
+4. 用硬件 baseline 验证 UDS 安全状态机和 gateway policy
+5. 再把 Kintsugi guard/applicator 接成真实硬件 hotpatch 闭环
 
 ## 参考来源
 

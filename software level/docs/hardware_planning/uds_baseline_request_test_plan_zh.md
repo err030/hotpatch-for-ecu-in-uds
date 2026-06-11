@@ -28,6 +28,18 @@ candump -L can0
 
 `ip link delete can0` 如果提示设备不存在，可以忽略。
 
+## `vcan0` 和 CANable2.0 / `can0` 的边界
+
+- `vcan0` 只用于主机上的软件回归测试：`tests.test_socketcan` 和
+  `tests.test_pythoncan` 会把 mock ECU / gateway 挂到 Linux virtual CAN。
+- CANable2.0 发真实 CAN frame 时不走 `vcan0`，而是走真实 SocketCAN 设备，
+  本计划默认接口名为 `can0`。
+- 如果 CANable2.0 使用 `slcan` 固件，按上面的 `slcand -s5 ... can0` 拉起；
+  `-s5` 对应当前板端配置的 `250 kbps`。
+- 如果 CANable2.0 使用 candleLight / `gs_usb` 固件，通常会直接枚举成
+  SocketCAN 设备，再用 `sudo ip link set can0 type can bitrate 250000` 和
+  `sudo ip link set up can0` 拉起。
+
 按 nRF reset 后，固件会主动发启动测试帧：
 
 ```text
@@ -109,6 +121,32 @@ cansend can0 7E0#062E1234AABB0000
 
 ```text
 7E8#036E123400000000
+```
+
+### 5. 读回 DID
+
+写入 `0x1234` 后，可以用 `0x22 ReadDataByIdentifier` 读回当前值：
+
+```bash
+cansend can0 7E0#0322123400000000
+```
+
+如果上一步写入 `AABB`，预期响应：
+
+```text
+7E8#05621234AABB0000
+```
+
+当前还提供一个只读状态 DID `0x1001`：
+
+```bash
+cansend can0 7E0#0322100100000000
+```
+
+预期响应：
+
+```text
+7E8#0562100142100000
 ```
 
 ## 恶意请求和拦截
@@ -235,11 +273,14 @@ python3 "software level/tools/uds_security_baseline_test.py" --interface can0
 - reset 到 default session
 - default session 下直接 `0x2E` 写入，期望 `0x7F 0x2E 0x22`
 - extended session 下未解锁 `0x2E` 写入，期望 `0x7F 0x2E 0x33`
+- 读取只读 DID `0x1001`，期望 `0x62 0x10 0x01 0x42 0x10`
+- 对只读 DID `0x1001` 执行 `0x2E`，期望 `0x7F 0x2E 0x31`
 - 请求 seed 后发送错误 key，期望 `0x7F 0x27 0x35`
 - 第二次错误 key 触发 attempt limit，期望 `0x7F 0x27 0x36`
 - lockout 期间请求 seed，期望 `0x7F 0x27 0x37`
 - 请求 seed 后计算 demo key，期望 `0x67 0x02`
 - 解锁后合法 DID write，期望 `0x6E 0x12 0x34`
+- 读回刚写入的 DID `0x1234`，期望 `0x62 0x12 0x34 ...`
 - session reset 后重放同一个 DID write，期望再次被拒绝
 
 测试结果会打印到终端，并写入：
@@ -247,6 +288,9 @@ python3 "software level/tools/uds_security_baseline_test.py" --interface can0
 ```text
 software level/charts/hardware_baseline_security_latest.csv
 ```
+
+2026-06-11 实测结果：CANable2.0 / `can0` 到 nRF52840 baseline 全部通过，
+`19/19` 个 security baseline 检查为 `PASS`。
 
 这个 CSV 可作为“不加入 hotpatch 时 baseline 拦截结果”的实验记录。
 
@@ -282,6 +326,8 @@ python3 "software level/tools/cve_derived_uds_attack_test.py" --interface can0
 software level/charts/cve_derived_uds_attack_latest.csv
 ```
 
+2026-06-11 实测结果：`6/6` 个 CVE-derived UDS attack 检查为 `PASS`。
+
 ## Gateway 模式
 
 当前板级配置是：
@@ -293,6 +339,7 @@ UDS_GATEWAY_MODE_MISCONFIGURED
 它允许：
 
 - `0x10` DiagnosticSessionControl
+- `0x22` ReadDataByIdentifier
 - `0x27` SecurityAccess
 - `0x2E` WriteDataByIdentifier
 
@@ -302,7 +349,7 @@ UDS_GATEWAY_MODE_MISCONFIGURED
 UDS_GATEWAY_MODE_RESTRICTED
 ```
 
-此时 `0x2E` 应在 gateway 层被阻断，不进入 adjacent ECU。
+此时 `0x22` 仍允许通过，`0x2E` 应在 gateway 层被阻断，不进入 adjacent ECU。
 
 ## 加密/认证协议说明
 

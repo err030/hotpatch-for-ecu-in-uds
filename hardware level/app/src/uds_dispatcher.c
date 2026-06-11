@@ -5,14 +5,22 @@
 static void uds_config_table_init_default(uds_config_table_t *table)
 {
     memset(table, 0, sizeof(*table));
-    table->count = 1U;
+    table->count = 2U;
     table->entries[0].did = UDS_VALID_WRITE_DID;
+    table->entries[0].readable = true;
     table->entries[0].writable = true;
     table->entries[0].requires_extended_session = true;
     table->entries[0].requires_security_unlock = true;
     table->entries[0].required_security_level = UDS_SECURITY_LEVEL_CONFIG_WRITE;
     table->entries[0].min_write_length = 1U;
     table->entries[0].max_write_length = 4U;
+
+    table->entries[1].did = UDS_READ_ONLY_STATUS_DID;
+    table->entries[1].readable = true;
+    table->entries[1].writable = false;
+    table->entries[1].value_length = 2U;
+    table->entries[1].value[0] = 0x42U;
+    table->entries[1].value[1] = 0x10U;
 }
 
 static uds_config_entry_t *uds_config_table_find_mutable(
@@ -487,6 +495,43 @@ static void uds_handle_write_data_by_identifier(
     uds_response_make_positive(response, request->sid, response_data, 2U);
 }
 
+static void uds_handle_read_data_by_identifier(
+    uds_dispatcher_t *dispatcher,
+    const uds_request_t *request,
+    uds_response_t *response
+)
+{
+    const uds_config_entry_t *entry;
+    uint8_t response_data[2U + UDS_CONFIG_VALUE_MAX_LENGTH];
+
+    if (!request->has_did) {
+        uds_response_make_negative(response, request->sid, NRC_INCORRECT_MESSAGE_LENGTH);
+        return;
+    }
+
+    entry = uds_dispatcher_find_config_entry(dispatcher, request->did);
+    if (entry == NULL || !entry->readable) {
+        uds_response_make_negative(response, request->sid, NRC_REQUEST_OUT_OF_RANGE);
+        return;
+    }
+    if (entry->value_length > UDS_CONFIG_VALUE_MAX_LENGTH) {
+        uds_response_make_negative(response, request->sid, NRC_REQUEST_OUT_OF_RANGE);
+        return;
+    }
+
+    response_data[0] = (uint8_t)(request->did >> 8);
+    response_data[1] = (uint8_t)(request->did & 0xFFU);
+    if (entry->value_length > 0U) {
+        memcpy(&response_data[2], entry->value, entry->value_length);
+    }
+    uds_response_make_positive(
+        response,
+        request->sid,
+        response_data,
+        (uint8_t)(2U + entry->value_length)
+    );
+}
+
 void uds_dispatcher_handle_request(
     uds_dispatcher_t *dispatcher,
     const uds_request_t *request,
@@ -506,6 +551,10 @@ void uds_dispatcher_handle_request(
 
     case SID_SECURITY_ACCESS:
         uds_handle_security_access(dispatcher, request, response);
+        return;
+
+    case SID_READ_DATA_BY_IDENTIFIER:
+        uds_handle_read_data_by_identifier(dispatcher, request, response);
         return;
 
     case SID_WRITE_DATA_BY_IDENTIFIER:

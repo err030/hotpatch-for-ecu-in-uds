@@ -29,9 +29,9 @@
 ## 对应的代码位置
 
 - `hardware level/app/`
-  后续你自己写的 `UDS ECU firmware` C 模块。
+  当前硬件侧 `UDS ECU firmware` C 模块，包含 protocol/link/dispatcher/ECU/gateway/task/runtime 和 MCP2515 port。
 - `hardware level/board_baseline/`
-  从旧工程提炼出来的 `nRF52840 + FreeRTOS` 起步底座。
+  从旧工程提炼出来的 `nRF52840 + FreeRTOS` 起步底座，当前已能编译 `nrf52840_xxaa` 并串起 `CANable -> gateway -> adjacent ECU` 诊断路径。
 - `hardware level/third_party/kintsugi_minimal/`
   当前最小化保留的 Kintsugi 运行时组件。
 
@@ -39,4 +39,6 @@
 
 - software 和 hardware 现在已经物理分开。
 - `hardware level/` 不再承载 Markdown 说明文件。
-- Python 语义模型继续保留在 `software level/`，硬件实现只复用其中的方法和规则，不再混放代码。
+- Python 语义模型继续保留在 `software level/`，硬件 C baseline 复用其中已经稳定的 UDS/security 规则。
+- `vcan0` 软件回归和 CANable2.0 / `can0` 真实硬件 baseline 都已经跑通。
+- 下一阶段重点不是再搭工程骨架，而是补 C 侧 host 测试、完整 ISO-TP 决策、多 profile gateway 配置和 Kintsugi hotpatch 闭环。

@@ -48,6 +48,6 @@ Hotpatch block rate: 0.9355
 OTA-only block rate: 0.0323
 测试状态现在是：
 
-tests.test_pythoncan：本地跑通，virtual 3 项通过；socketcan 3 项在当前 Codex 会话里因 raw CAN 权限限制而 skip
-tests.test_socketcan：你已经在 Ubuntu VM 里跑通
-带本地依赖前缀的全量测试：50 项通过，3 项跳过
+tests.test_pythoncan：virtual 3 项通过，socketcan/vcan0 3 项通过
+tests.test_socketcan：raw SocketCAN/vcan0 3 项通过
+全量软件回归：60 项通过，0 项跳过

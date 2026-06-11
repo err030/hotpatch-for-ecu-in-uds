@@ -18,6 +18,7 @@ from .protocol import (
     SESSION_DEFAULT,
     SESSION_EXTENDED,
     SID_DIAGNOSTIC_SESSION_CONTROL,
+    SID_READ_DATA_BY_IDENTIFIER,
     SID_SECURITY_ACCESS,
     SID_WRITE_DATA_BY_IDENTIFIER,
     UDSRequest,
@@ -68,6 +69,9 @@ class UdsClient:
 
     def send_key(self, key: bytes) -> ClientCallResult:
         return self.raw_request(UDSRequest(sid=SID_SECURITY_ACCESS, subfunction=0x02, data=key))
+
+    def read_data_by_identifier(self, did: int) -> ClientCallResult:
+        return self.raw_request(UDSRequest(sid=SID_READ_DATA_BY_IDENTIFIER, did=did))
 
     def write_data_by_identifier(self, did: int, data: bytes) -> ClientCallResult:
         return self.raw_request(UDSRequest(sid=SID_WRITE_DATA_BY_IDENTIFIER, did=did, data=data))

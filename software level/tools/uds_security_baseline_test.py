@@ -266,6 +266,26 @@ def main() -> int:
             run_case(
                 can_socket,
                 args,
+                "read_only_status_did_allowed",
+                bytes([0x22, 0x10, 0x01]),
+                "6210014210",
+                expect_payload(bytes([0x62, 0x10, 0x01, 0x42, 0x10])),
+            )
+        )
+        results.append(
+            run_case(
+                can_socket,
+                args,
+                "read_only_status_write_rejected",
+                bytes([0x2E, 0x10, 0x01, 0xAA]),
+                "7F2E31",
+                expect_payload(bytes([0x7F, 0x2E, 0x31])),
+            )
+        )
+        results.append(
+            run_case(
+                can_socket,
+                args,
                 "request_seed_for_wrong_key",
                 bytes([0x27, 0x01]),
                 "6701xxxx",
@@ -367,6 +387,16 @@ def main() -> int:
                 bytes([0x2E, 0x12, 0x34, 0xAA, 0xBB]),
                 "6E1234",
                 expect_payload(bytes([0x6E, 0x12, 0x34])),
+            )
+        )
+        results.append(
+            run_case(
+                can_socket,
+                args,
+                "read_back_authorized_write",
+                bytes([0x22, 0x12, 0x34]),
+                "621234AABB",
+                expect_payload(bytes([0x62, 0x12, 0x34, 0xAA, 0xBB])),
             )
         )
         results.append(

@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 
 
 SID_DIAGNOSTIC_SESSION_CONTROL = 0x10
+SID_READ_DATA_BY_IDENTIFIER = 0x22
 SID_SECURITY_ACCESS = 0x27
 SID_WRITE_DATA_BY_IDENTIFIER = 0x2E
 NEGATIVE_RESPONSE_SID = 0x7F
@@ -51,6 +52,11 @@ class UDSRequest:
                 raise ValueError("SecurityAccess requires a subfunction")
             return bytes([self.sid, self.subfunction]) + self.data
 
+        if self.sid == SID_READ_DATA_BY_IDENTIFIER:
+            if self.did is None:
+                raise ValueError("ReadDataByIdentifier requires a DID")
+            return bytes([self.sid]) + self.did.to_bytes(2, "big")
+
         if self.sid == SID_WRITE_DATA_BY_IDENTIFIER:
             if self.did is None:
                 raise ValueError("WriteDataByIdentifier requires a DID")
@@ -75,6 +81,12 @@ class UDSRequest:
             if len(payload) < 2:
                 raise ValueError("SecurityAccess payload must be at least 2 bytes")
             return cls(sid=sid, subfunction=payload[1], data=payload[2:])
+
+        if sid == SID_READ_DATA_BY_IDENTIFIER:
+            if len(payload) != 3:
+                raise ValueError("ReadDataByIdentifier payload must be 3 bytes")
+            did = int.from_bytes(payload[1:3], "big")
+            return cls(sid=sid, did=did)
 
         if sid == SID_WRITE_DATA_BY_IDENTIFIER:
             if len(payload) < 3:

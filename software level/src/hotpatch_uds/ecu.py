@@ -25,6 +25,7 @@ from .protocol import (
     SESSION_DEFAULT,
     SESSION_EXTENDED,
     SID_DIAGNOSTIC_SESSION_CONTROL,
+    SID_READ_DATA_BY_IDENTIFIER,
     SID_SECURITY_ACCESS,
     SID_WRITE_DATA_BY_IDENTIFIER,
     UDSRequest,
@@ -35,6 +36,10 @@ from .protocol import (
 
 
 VALID_WRITE_DID = 0x1234
+READ_ONLY_STATUS_DID = 0x1001
+READ_ONLY_STATUS_VALUE = b"\x42\x10"
+WRITE_DID_MIN_LENGTH = 1
+WRITE_DID_MAX_LENGTH = 4
 SEED_MASK = 0xA55A
 
 
@@ -113,6 +118,8 @@ class BaseECU:
             return self._handle_session_control(request)
         if request.sid == SID_SECURITY_ACCESS:
             return self._handle_security_access(request)
+        if request.sid == SID_READ_DATA_BY_IDENTIFIER:
+            return self._handle_read_data_by_identifier(request)
         if request.sid == SID_WRITE_DATA_BY_IDENTIFIER:
             return self._handle_write_data_by_identifier(request)
         return negative_response(request.sid, NRC_REQUEST_OUT_OF_RANGE)
@@ -172,6 +179,17 @@ class BaseECU:
 
         return negative_response(request.sid, NRC_SUBFUNCTION_NOT_SUPPORTED)
 
+    def _handle_read_data_by_identifier(self, request: UDSRequest) -> UDSResponse:
+        if request.did == VALID_WRITE_DID:
+            value = self.state.writes.get(VALID_WRITE_DID, b"")
+            return positive_response(request.sid, request.did.to_bytes(2, "big") + value)
+        if request.did == READ_ONLY_STATUS_DID:
+            return positive_response(
+                request.sid,
+                request.did.to_bytes(2, "big") + READ_ONLY_STATUS_VALUE,
+            )
+        return negative_response(request.sid, NRC_REQUEST_OUT_OF_RANGE)
+
     def _handle_write_data_by_identifier(self, request: UDSRequest) -> UDSResponse:
         if request.did != VALID_WRITE_DID:
             return negative_response(request.sid, NRC_REQUEST_OUT_OF_RANGE)
@@ -182,6 +200,8 @@ class BaseECU:
                 self.state.writes[request.did] = request.data
                 return positive_response(request.sid, request.did.to_bytes(2, "big"))
             return negative_response(request.sid, NRC_SECURITY_ACCESS_DENIED)
+        if not (WRITE_DID_MIN_LENGTH <= len(request.data) <= WRITE_DID_MAX_LENGTH):
+            return negative_response(request.sid, NRC_INCORRECT_MESSAGE_LENGTH)
 
         self.state.writes[request.did] = request.data
         if self.state.security_unlocked:

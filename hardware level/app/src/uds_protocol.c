@@ -42,6 +42,14 @@ bool uds_request_from_payload(
         memcpy(request->data, &payload[2], request->data_length);
         return true;
 
+    case SID_READ_DATA_BY_IDENTIFIER:
+        if (payload_length != 3U) {
+            return false;
+        }
+        request->has_did = true;
+        request->did = (uint16_t)(((uint16_t)payload[1] << 8) | payload[2]);
+        return true;
+
     case SID_WRITE_DATA_BY_IDENTIFIER:
         if (payload_length < 3U) {
             return false;
@@ -94,6 +102,14 @@ bool uds_request_to_payload(
         payload_out[cursor++] = request->subfunction;
         memcpy(&payload_out[cursor], request->data, request->data_length);
         cursor = (uint8_t)(cursor + request->data_length);
+        break;
+
+    case SID_READ_DATA_BY_IDENTIFIER:
+        if (!request->has_did) {
+            return false;
+        }
+        payload_out[cursor++] = (uint8_t)(request->did >> 8);
+        payload_out[cursor++] = (uint8_t)(request->did & 0xFFU);
         break;
 
     case SID_WRITE_DATA_BY_IDENTIFIER:

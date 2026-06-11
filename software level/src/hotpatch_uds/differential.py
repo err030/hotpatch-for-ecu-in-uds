@@ -136,6 +136,10 @@ def run_case_on_client(
             if operation.did is None:
                 raise ValueError("write operation requires a DID")
             response = client.write_data_by_identifier(operation.did, operation.data).response
+        elif operation.kind == "read":
+            if operation.did is None:
+                raise ValueError("read operation requires a DID")
+            response = client.read_data_by_identifier(operation.did).response
         else:
             raise ValueError(f"Unsupported differential operation: {operation.kind}")
         responses.append(normalize_response(response))
@@ -175,6 +179,20 @@ def default_differential_cases() -> tuple[DifferentialCase, ...]:
                 DifferentialOperation("send_valid_key"),
                 DifferentialOperation("write", did=0x1234, data=b"\xAA\xBB"),
             ),
+        ),
+        DifferentialCase(
+            name="read_after_authorized_write",
+            operations=(
+                DifferentialOperation("change_to_extended_session"),
+                DifferentialOperation("request_seed"),
+                DifferentialOperation("send_valid_key"),
+                DifferentialOperation("write", did=0x1234, data=b"\xAA\xBB"),
+                DifferentialOperation("read", did=0x1234),
+            ),
+        ),
+        DifferentialCase(
+            name="read_only_status_did",
+            operations=(DifferentialOperation("read", did=0x1001),),
         ),
         DifferentialCase(
             name="sequence_error",

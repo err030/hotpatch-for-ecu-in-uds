@@ -11,6 +11,7 @@ extern "C" {
 #endif
 
 #define UDS_VALID_WRITE_DID 0x1234U
+#define UDS_READ_ONLY_STATUS_DID 0x1001U
 #define UDS_SEED_MASK 0xA55AU
 #define UDS_SECURITY_LEVEL_CONFIG_WRITE 0x01U
 #define UDS_SESSION_P2_SERVER_MAX_MS 50U
@@ -28,6 +29,7 @@ typedef enum {
 
 typedef struct {
     uint16_t did;
+    bool readable;
     bool writable;
     bool requires_extended_session;
     bool requires_security_unlock;

@@ -5,6 +5,7 @@
 import unittest
 
 from src.hotpatch_uds.ecu import (
+    READ_ONLY_STATUS_DID,
     ReplayWriteVulnerableECU,
     StickyUnlockAfterFailedKeyECU,
     StickyUnlockAfterSessionChangeECU,
@@ -31,6 +32,18 @@ class GatewayAndAttackTests(unittest.TestCase):
             client.write_data_by_identifier(VALID_WRITE_DID, b"\x01")
 
         self.assertIn("blocked UDS service 0x2E", str(context.exception))
+
+    def test_restricted_gateway_allows_read_service(self) -> None:
+        server = MockEcuServer(ReplayWriteVulnerableECU())
+        client = build_gateway_routed_client_and_server(
+            server,
+            gateway_mode=GATEWAY_MODE_RESTRICTED,
+        )
+
+        result = client.read_data_by_identifier(READ_ONLY_STATUS_DID)
+
+        self.assertTrue(result.response.positive)
+        self.assertEqual(result.response.sid, 0x62)
 
     def test_failed_key_can_leave_old_unlock_state_in_buggy_ecu(self) -> None:
         server = MockEcuServer(StickyUnlockAfterFailedKeyECU())

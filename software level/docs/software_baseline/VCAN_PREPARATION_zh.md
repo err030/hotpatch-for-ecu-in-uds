@@ -1,15 +1,15 @@
 <!--
 中文说明：
-- 这个文件用于说明当前项目如何准备接入真实 `vcan / SocketCAN`，但目前还不真正连接。
-- 它的作用是先把接入路径、代码对应层和后续变更范围讲清楚。
-- 这份文件是工程准备说明，不是最终实验记录。
+- 这个文件用于说明当前项目的 `vcan / SocketCAN` 软件验证路径。
+- 它同时说明 `vcan0` 和真实 CANable2.0 / `can0` 硬件路径的边界。
+- 这份文件是工程状态说明，不是最终硬件实验记录。
 -->
 
 # VCAN Preparation
 
 ## 当前状态
 
-当前仓库已经新增一个不依赖第三方框架的 `SocketCAN / vcan0` backend：
+当前仓库已经有一个不依赖第三方框架的 `SocketCAN / vcan0` backend：
 
 - `src/hotpatch_uds/socketcan.py`
 - `build_socketcan_direct_client_and_server(...)`
@@ -18,9 +18,12 @@
 它直接使用 Python 标准库 `socket.AF_CAN`，因此当前就可以把现有 mock ECU /
 gateway 挂到 Linux `vcan0`。
 
-当前仓库仍然还没有真正使用：
+当前仓库也已经验证了第三方协议栈路径：
 
-- `python-can / can-isotp / udsoncan` 的已安装环境
+- `python-can virtual`
+- `python-can socketcan + vcan0`
+- `can-isotp`
+- `udsoncan`
 
 当前仍然使用：
 
@@ -71,10 +74,10 @@ Linux AF_CAN raw socket
 vcan0
 ```
 
-后续目标结构再进一步变成：
+第三方协议栈结构已经可以是：
 
 ```text
-UdsClient / future udsoncan.Client
+UdsClient / udsoncan.Client
     ->
 IsoTP connection
     ->
@@ -103,9 +106,9 @@ vcan0
 - `transport.py`
 - `client.py`
 
-## 建议的下一步
+## 已验证的软件回归命令
 
-如果你要在 Ubuntu 虚拟机里实际跑起来，当前最直接的命令是：
+在 Ubuntu 主机上准备 `vcan0` 后，可以跑：
 
 ```bash
 sudo modprobe vcan
@@ -115,19 +118,36 @@ python3 -m pip install python-can can-isotp udsoncan
 python3 -m unittest tests.test_socketcan tests.test_pythoncan -v
 ```
 
-当你准备继续把外部框架接进来时，最稳的顺序是：
+当前完整软件回归也已经覆盖 `vcan0`：
 
-1. 安装 `python-can`
-2. 安装 `can-isotp`
-3. 安装 `udsoncan`
-4. 先跑 `python-can virtual`
-5. 再切 `socketcan + vcan0`
+```bash
+python3 -m unittest discover -s tests -v
+```
 
-## 为什么现在还不急着真接
+## 和 CANable2.0 的关系
 
-因为 thesis 当前更重要的是：
+`vcan0` 是 Linux virtual CAN，只用于主机内的 mock ECU / gateway 回归测试。
+CANable2.0 发真实 CAN frame 时不需要 `vcan0`，而是需要把 CANable 拉成
+真实 SocketCAN 接口，例如 `can0`。
 
-- 把攻击链、状态机、patch 行为、fleet 比较和 timing model 先做扎实
-- 然后再把 transport 层逐步替换成 `python-can / can-isotp / udsoncan`
+如果 CANable2.0 是 `slcan` 固件，使用：
 
-这样范围更可控，论文结构也更稳。
+```bash
+sudo slcand -o -f -s5 /dev/serial/by-id/<CANable2.0-device> can0
+sudo ip link set up can0
+```
+
+如果 CANable2.0 是 candleLight / `gs_usb` 固件，通常使用：
+
+```bash
+sudo ip link set can0 type can bitrate 250000
+sudo ip link set up can0
+```
+
+## 下一步
+
+软件栈已经验证到 `vcan0`。后续重点应转到：
+
+- CANable2.0 / `can0` 到 nRF52840 baseline 的真实请求记录
+- C dispatcher 的 host 单元测试和 Python corpus 对齐
+- Kintsugi guard / applicator / MPU 的硬件闭环
