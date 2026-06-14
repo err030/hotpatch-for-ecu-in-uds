@@ -147,7 +147,7 @@ https://github.com/nickdaria/udslib
   - odd：request seed
   - even：send key
 - 当前只支持 security level `0x01`
-- key 仍为论文实验用 demo 算法：
+- key 仍为实验用弱算法，用于复现 SecurityAccess 后续 `0x2E` 写入风险：
 
 ```text
 key = seed ^ 0xA55A

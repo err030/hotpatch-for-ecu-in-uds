@@ -215,6 +215,7 @@ void uds_dispatcher_init_strict(uds_dispatcher_t *dispatcher)
         .clear_unlock_on_failed_key = true,
         .clear_unlock_on_session_change = true,
         .allow_replay_without_unlock = false,
+        .quarantine_config_write_did = false,
         .max_failed_attempts = 2U,
         .lockout_duration_ticks = 3U,
     };
@@ -222,13 +223,14 @@ void uds_dispatcher_init_strict(uds_dispatcher_t *dispatcher)
     uds_dispatcher_init_common(dispatcher, &policy);
 }
 
-void uds_dispatcher_init_demo_vulnerable(uds_dispatcher_t *dispatcher)
+void uds_dispatcher_init_vulnerable(uds_dispatcher_t *dispatcher)
 {
     const uds_dispatcher_policy_t policy = {
         .write_requires_unlock = false,
         .clear_unlock_on_failed_key = true,
         .clear_unlock_on_session_change = true,
         .allow_replay_without_unlock = true,
+        .quarantine_config_write_did = false,
         .max_failed_attempts = 2U,
         .lockout_duration_ticks = 3U,
     };
@@ -246,6 +248,23 @@ void uds_dispatcher_apply_strict_patch(uds_dispatcher_t *dispatcher)
     dispatcher->policy.clear_unlock_on_failed_key = true;
     dispatcher->policy.clear_unlock_on_session_change = true;
     dispatcher->policy.allow_replay_without_unlock = false;
+    dispatcher->policy.quarantine_config_write_did = false;
+    uds_session_state_clear_unlock(&dispatcher->session_state);
+    dispatcher->session_state.pending_seed_valid = false;
+    uds_replay_guard_reset(&dispatcher->replay_guard);
+}
+
+void uds_dispatcher_apply_security_access_hotpatch(uds_dispatcher_t *dispatcher)
+{
+    if (dispatcher == NULL) {
+        return;
+    }
+
+    dispatcher->policy.write_requires_unlock = true;
+    dispatcher->policy.clear_unlock_on_failed_key = true;
+    dispatcher->policy.clear_unlock_on_session_change = true;
+    dispatcher->policy.allow_replay_without_unlock = false;
+    dispatcher->policy.quarantine_config_write_did = true;
     uds_session_state_clear_unlock(&dispatcher->session_state);
     dispatcher->session_state.pending_seed_valid = false;
     uds_replay_guard_reset(&dispatcher->replay_guard);
@@ -467,6 +486,12 @@ static void uds_handle_write_data_by_identifier(
             uds_response_make_negative(response, request->sid, NRC_SECURITY_ACCESS_DENIED);
             return;
         }
+    }
+
+    if (dispatcher->policy.quarantine_config_write_did &&
+        request->did == UDS_VALID_WRITE_DID) {
+        uds_response_make_negative(response, request->sid, NRC_REQUEST_OUT_OF_RANGE);
+        return;
     }
 
     if (request->data_length < entry->min_write_length ||

@@ -78,6 +78,7 @@ class BaseECU:
         clear_unlock_on_failed_key: bool = True,
         clear_unlock_on_session_change: bool = True,
         allow_replay_without_unlock: bool = False,
+        quarantine_config_write_did: bool = False,
         max_failed_attempts: int = 2,
         lockout_duration_ticks: int = 3,
     ) -> None:
@@ -86,12 +87,15 @@ class BaseECU:
         self.clear_unlock_on_failed_key = clear_unlock_on_failed_key
         self.clear_unlock_on_session_change = clear_unlock_on_session_change
         self.allow_replay_without_unlock = allow_replay_without_unlock
+        self.quarantine_config_write_did = quarantine_config_write_did
         self.max_failed_attempts = max_failed_attempts
         self.lockout_duration_ticks = lockout_duration_ticks
         self._initial_policy = self._capture_policy()
 
     def mode_name(self) -> str:
-        if self.is_fully_patched():
+        if self.quarantine_config_write_did:
+            return "hotpatched"
+        if self.is_strict_policy():
             return "patched"
         return "vulnerable"
 
@@ -101,6 +105,10 @@ class BaseECU:
         self.clear_unlock_on_failed_key = True
         self.clear_unlock_on_session_change = True
         self.allow_replay_without_unlock = False
+        self.quarantine_config_write_did = True
+        self.state.security_unlocked = False
+        self.state.pending_seed = None
+        self.state.last_authorized_write = None
 
     def rollback_patch(self) -> None:
         """把策略恢复到补丁前配置，模拟回滚。"""
@@ -200,6 +208,8 @@ class BaseECU:
                 self.state.writes[request.did] = request.data
                 return positive_response(request.sid, request.did.to_bytes(2, "big"))
             return negative_response(request.sid, NRC_SECURITY_ACCESS_DENIED)
+        if self.quarantine_config_write_did and request.did == VALID_WRITE_DID:
+            return negative_response(request.sid, NRC_REQUEST_OUT_OF_RANGE)
         if not (WRITE_DID_MIN_LENGTH <= len(request.data) <= WRITE_DID_MAX_LENGTH):
             return negative_response(request.sid, NRC_INCORRECT_MESSAGE_LENGTH)
 
@@ -242,12 +252,17 @@ class BaseECU:
             flags.append("sticky_unlock_after_session_change")
         if self.allow_replay_without_unlock:
             flags.append("replay_authorized_write")
+        if not self.quarantine_config_write_did:
+            flags.append("weak_security_access_can_write_config_did")
         return tuple(flags)
 
     def vulnerability_count(self) -> int:
         return len(self.vulnerability_flags())
 
     def is_fully_patched(self) -> bool:
+        return self.is_strict_policy() and self.quarantine_config_write_did
+
+    def is_strict_policy(self) -> bool:
         return (
             self.write_requires_unlock
             and self.clear_unlock_on_failed_key
@@ -261,6 +276,7 @@ class BaseECU:
             "clear_unlock_on_failed_key": self.clear_unlock_on_failed_key,
             "clear_unlock_on_session_change": self.clear_unlock_on_session_change,
             "allow_replay_without_unlock": self.allow_replay_without_unlock,
+            "quarantine_config_write_did": self.quarantine_config_write_did,
             "max_failed_attempts": self.max_failed_attempts,
             "lockout_duration_ticks": self.lockout_duration_ticks,
         }
@@ -270,6 +286,7 @@ class BaseECU:
         self.clear_unlock_on_failed_key = bool(policy["clear_unlock_on_failed_key"])
         self.clear_unlock_on_session_change = bool(policy["clear_unlock_on_session_change"])
         self.allow_replay_without_unlock = bool(policy["allow_replay_without_unlock"])
+        self.quarantine_config_write_did = bool(policy["quarantine_config_write_did"])
         self.max_failed_attempts = int(policy["max_failed_attempts"])
         self.lockout_duration_ticks = int(policy["lockout_duration_ticks"])
 
@@ -286,6 +303,16 @@ class PatchedECU(BaseECU):
 
     def __init__(self) -> None:
         super().__init__(write_requires_unlock=True)
+
+
+class HotpatchedECU(BaseECU):
+    """SecurityAccess hotpatch 后的版本，临时隔离高风险配置 DID 写入。"""
+
+    def __init__(self) -> None:
+        super().__init__(
+            write_requires_unlock=True,
+            quarantine_config_write_did=True,
+        )
 
 
 class PatchableECU(BaseECU):

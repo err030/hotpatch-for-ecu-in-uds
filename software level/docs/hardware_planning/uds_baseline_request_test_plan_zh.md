@@ -87,7 +87,7 @@ cansend can0 7E0#0227010000000000
 
 ### 3. 发送正确 key
 
-key 计算当前是 demo 逻辑：
+key 计算当前是实验用弱变换：
 
 ```text
 key = seed ^ 0xA55A
@@ -278,7 +278,7 @@ python3 "software level/tools/uds_security_baseline_test.py" --interface can0
 - 请求 seed 后发送错误 key，期望 `0x7F 0x27 0x35`
 - 第二次错误 key 触发 attempt limit，期望 `0x7F 0x27 0x36`
 - lockout 期间请求 seed，期望 `0x7F 0x27 0x37`
-- 请求 seed 后计算 demo key，期望 `0x67 0x02`
+- 请求 seed 后计算实验弱变换 key，期望 `0x67 0x02`
 - 解锁后合法 DID write，期望 `0x6E 0x12 0x34`
 - 读回刚写入的 DID `0x1234`，期望 `0x62 0x12 0x34 ...`
 - session reset 后重放同一个 DID write，期望再次被拒绝
@@ -289,12 +289,71 @@ python3 "software level/tools/uds_security_baseline_test.py" --interface can0
 software level/charts/hardware_baseline_security_latest.csv
 ```
 
-2026-06-11 实测结果：CANable2.0 / `can0` 到 nRF52840 baseline 全部通过，
+2026-06-11 实测结果：早期 misconfigured gateway + strict ECU baseline 全部通过，
 `19/19` 个 security baseline 检查为 `PASS`。
+
+2026-06-14 实测结果：CANable2.0 / `can0` 到 nRF52840 secure profile 全部通过，
+`19/19` 个 security baseline 检查为 `PASS`。该 profile 让 `0x2E` 穿过 gateway
+到达 strict ECU，非法写由 ECU 返回 NRC，合法授权写仍允许。结果写入：
+
+```text
+software level/charts/hardware_secure_security_latest.csv
+```
+
+2026-06-14 实测结果：CANable2.0 / `can0` 到 nRF52840 vulnerable profile 全部通过，
+`19/19` 个检查符合 vulnerable profile 预期。其中 extended session 下未解锁
+`0x2E 0x1234` 返回 `0x6E 0x1234`，说明高风险请求已到达 ECU 且被 vulnerable
+policy 接受。结果写入：
+
+```text
+software level/charts/hardware_vulnerable_security_latest.csv
+```
 
 这个 CSV 可作为“不加入 hotpatch 时 baseline 拦截结果”的实验记录。
 
-## CVE-derived UDS 攻击测试
+## SecurityAccess-derived 0x2E 攻击测试
+
+主攻击脚本：
+
+```text
+software level/tools/uds_2e_security_access_attack_test.py
+```
+
+该脚本执行完整的 `0x10 -> 0x27 -> 0x2E -> 0x22` 流程，用来验证：
+
+- 请求能穿过 gateway 到达 ECU；
+- 弱 seed/key 变换被算出后，`0x27` 解锁成功；
+- `0x2E WriteDataByIdentifier` 写入成功；
+- `0x22 ReadDataByIdentifier` 能读回写入值。
+
+运行：
+
+```bash
+python3 "software level/tools/uds_2e_security_access_attack_test.py" --interface can0 --csv "software level/charts/uds_2e_security_access_attack_secure_latest.csv"
+```
+
+2026-06-14 实测结果：secure profile 下 `5/5` 个步骤为 `PASS`，`0x2E 0x1234 CAFE`
+写入成功并通过 `0x22` 读回。这个结果说明：仅靠 gateway/service routing 不会阻断
+协议有效的 `0x27 -> 0x2E` 序列；hotpatch 应修复 ECU-local SecurityAccess / DID
+write policy。
+
+hotpatched profile 验证命令：
+
+```bash
+python3 "software level/tools/uds_2e_security_access_attack_test.py" --interface can0 --expect hotpatched-block --csv "software level/charts/uds_2e_security_access_attack_hotpatched_latest.csv"
+```
+
+2026-06-14 实测结果：hotpatched profile 下 `5/5` 个步骤为 `PASS`。其中
+`0x27` 仍返回 `0x67 0x02`，但后续 `0x2E 0x1234 CAFE` 返回 `0x7F 0x2E 0x31`，
+`0x22 0x1234` 读回空值。这证明拦截点在 ECU-local DID quarantine，而不是 gateway。
+
+参考说明见：
+
+```text
+software level/docs/hardware_planning/uds_2e_security_access_attack_reference_zh.md
+```
+
+## Legacy CVE-derived parser negative 测试
 
 选择依据见：
 
@@ -302,7 +361,7 @@ software level/charts/hardware_baseline_security_latest.csv
 software level/docs/hardware_planning/cve_attack_selection_for_uds_hotpatch_zh.md
 ```
 
-新增脚本：
+保留脚本：
 
 ```text
 software level/tools/cve_derived_uds_attack_test.py
@@ -314,7 +373,8 @@ software level/tools/cve_derived_uds_attack_test.py
 python3 "software level/tools/cve_derived_uds_attack_test.py" --interface can0
 ```
 
-当前测试不是声称本 ECU 真实存在对应 CVE，而是把 Kintsugi real-world CVE 实验中的输入校验 bug class 映射到本项目 UDS-over-CAN 攻击面：
+当前测试不是主攻击证据，也不声称本 ECU 真实存在对应 CVE；它只保留为 parser /
+message-length negative testing：
 
 - `CVE-2020-17443-derived`：短报文长度检查，发送缺少 subfunction 的 `0x10`
 - `CVE-2018-16603-derived`：短底层 packet 导致越界访问，发送 PCI length 大于实际 CAN DLC 的 malformed single frame
@@ -326,34 +386,108 @@ python3 "software level/tools/cve_derived_uds_attack_test.py" --interface can0
 software level/charts/cve_derived_uds_attack_latest.csv
 ```
 
-2026-06-11 实测结果：`6/6` 个 CVE-derived UDS attack 检查为 `PASS`。
+2026-06-11 实测结果：早期 baseline 下 `6/6` 个 CVE-derived UDS attack 检查为
+`PASS`。
 
-## Gateway 模式
-
-当前板级配置是：
+2026-06-14 实测结果：secure profile 下 `6/6` 个 CVE-derived UDS attack 检查为
+`PASS`，其中 `0x2E` 派生攻击穿过 gateway 后由 strict ECU 返回 `0x7F 0x2E 0x13`。
+结果写入：
 
 ```text
-UDS_GATEWAY_MODE_MISCONFIGURED
+software level/charts/cve_derived_uds_attack_secure_latest.csv
 ```
 
-它允许：
+2026-06-14 实测结果：vulnerable profile 下 `6/6` 个 CVE-derived parser negative 检查为
+`PASS`，结果写入：
+
+```text
+software level/charts/cve_derived_uds_attack_vulnerable_latest.csv
+```
+
+## Gateway/Profile 模式
+
+当前板级默认 profile 是 `secure`。它故意让高风险诊断请求能穿过 gateway，
+再由 ECU 侧 strict security policy 拒绝非法写入：
+
+```text
+BOARD_BASELINE_PROFILE_SECURE -> UDS_GATEWAY_MODE_MISCONFIGURED + strict ECU
+```
+
+它允许通过 gateway：
 
 - `0x10` DiagnosticSessionControl
 - `0x22` ReadDataByIdentifier
 - `0x27` SecurityAccess
 - `0x2E` WriteDataByIdentifier
 
-后续为了展示 gateway 拦截，可以切到：
+因此 secure profile 下，非法 `0x2E` 预期会到达 adjacent ECU，然后由 strict ECU
+返回对应 NRC；合法授权后的 `0x2E` 仍应允许。这条路径用于证明 ECU 侧 security
+state machine 有效，也为后续 hotpatch 从 vulnerable ECU 切到 strict ECU 提供对照。
+
+攻击演示 profile 需要显式切到：
 
 ```text
-UDS_GATEWAY_MODE_RESTRICTED
+BOARD_BASELINE_PROFILE_VULNERABLE -> UDS_GATEWAY_MODE_MISCONFIGURED + vulnerable ECU
 ```
 
-此时 `0x22` 仍允许通过，`0x2E` 应在 gateway 层被阻断，不进入 adjacent ECU。
+它让 `0x2E` 穿过 gateway 并到达 vulnerable ECU。该 profile 用于展示为什么只靠
+gateway 后面的部署位置不够，以及为什么需要 ECU-local hotpatch 把 vulnerable
+policy 切到 strict policy。
+
+如果要展示 gateway perimeter 防护，可以显式切到：
+
+```text
+BOARD_BASELINE_PROFILE_GATEWAY_SECURE -> UDS_GATEWAY_MODE_RESTRICTED + strict ECU
+```
+
+这个 profile 会在 gateway 层直接 drop 外部 `0x2E`，它是 defense-in-depth 对照，
+不是 hotpatch 主线。
+
+hotpatch 拦截 profile 是：
+
+```text
+BOARD_BASELINE_PROFILE_HOTPATCHED -> UDS_GATEWAY_MODE_MISCONFIGURED + strict ECU + DID quarantine
+```
+
+它仍允许 `0x27` 和 `0x2E` 穿过 gateway 并到达 ECU。区别是 ECU-local hotpatch
+把高风险 `DID 0x1234` 写权限临时隔离：攻击者即使通过弱 seed/key 算法完成
+`0x27` 解锁，后续 `0x2E 0x1234 ...` 也会得到 `0x7F 0x2E 0x31`。
+
+构建/烧录命令：
+
+```bash
+make -C "hardware level/board_baseline" secure
+make -C "hardware level/board_baseline" flash-secure
+make -C "hardware level/board_baseline" vulnerable
+make -C "hardware level/board_baseline" flash-vulnerable
+make -C "hardware level/board_baseline" gateway-secure
+make -C "hardware level/board_baseline" flash-gateway-secure
+make -C "hardware level/board_baseline" hotpatched
+make -C "hardware level/board_baseline" flash-hotpatched
+```
+
+自动化测试按 profile 设置预期：
+
+```bash
+python3 "software level/tools/uds_security_baseline_test.py" --interface can0 --profile secure
+python3 "software level/tools/uds_security_baseline_test.py" --interface can0 --profile vulnerable
+python3 "software level/tools/uds_security_baseline_test.py" --interface can0 --profile gateway-secure
+python3 "software level/tools/uds_security_baseline_test.py" --interface can0 --profile hotpatched
+python3 "software level/tools/cve_derived_uds_attack_test.py" --interface can0 --profile secure
+python3 "software level/tools/cve_derived_uds_attack_test.py" --interface can0 --profile vulnerable
+python3 "software level/tools/cve_derived_uds_attack_test.py" --interface can0 --profile gateway-secure
+python3 "software level/tools/cve_derived_uds_attack_test.py" --interface can0 --profile hotpatched
+```
+
+如果只需要临时覆盖 gateway mode，也可以直接改：
+
+```text
+BOARD_UDS_GATEWAY_MODE
+```
 
 ## 加密/认证协议说明
 
-当前 `0x27` 是 demo seed/key：
+当前 `0x27` 是实验弱 seed/key：
 
 ```text
 key = seed ^ 0xA55A
@@ -367,4 +501,5 @@ key = seed ^ 0xA55A
 - replay window
 - lockout 和失败次数持久化策略
 
-在 hotpatch 实验里，建议先保留 demo 算法，明确写成 vulnerable/simple baseline；hotpatch 的重点先放在修复 DID write/replay/gateway policy。
+在 hotpatch 实验里，应明确写成 weak SecurityAccess baseline；hotpatch 的重点放在
+替换弱 seed/key、收紧 DID write policy、清理 replay/unlock 状态。

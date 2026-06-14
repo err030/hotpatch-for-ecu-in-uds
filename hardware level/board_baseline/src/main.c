@@ -187,11 +187,22 @@ static void board_diag_runtime_init(void)
         BOARD_UDS_GATEWAY_MODE
     );
     uds_gateway_task_init(&g_gateway_task, &g_gateway);
+#if (BOARD_UDS_ECU_PROFILE == BOARD_UDS_ECU_PROFILE_VULNERABLE)
+    uds_ecu_init_vulnerable(
+        &g_adjacent_ecu,
+        BOARD_UDS_INTERNAL_REQUEST_CAN_ID,
+        BOARD_UDS_INTERNAL_RESPONSE_CAN_ID
+    );
+#else
     uds_ecu_init_strict(
         &g_adjacent_ecu,
         BOARD_UDS_INTERNAL_REQUEST_CAN_ID,
         BOARD_UDS_INTERNAL_RESPONSE_CAN_ID
     );
+#endif
+#if (BOARD_UDS_APPLY_SECURITY_ACCESS_HOTPATCH == 1)
+    uds_ecu_apply_security_access_hotpatch(&g_adjacent_ecu);
+#endif
     uds_ecu_task_init(&g_adjacent_ecu_task, &g_adjacent_ecu);
     uds_board_adapter_init_gateway_path(
         &g_board_adapter,
@@ -350,7 +361,10 @@ int main(void)
     board_clock_init();
     board_logs_init();
 
-    board_log_printf("[BOOT] hotpatch UDS board baseline starting\n");
+    board_log_printf(
+        "[BOOT] hotpatch UDS board baseline starting profile=%s\n",
+        BOARD_BASELINE_PROFILE_NAME
+    );
 
     if (!board_wiring_configured()) {
         board_log_printf(
@@ -378,12 +392,15 @@ int main(void)
     board_diag_runtime_init();
 
     board_log_printf(
-        "[BOOT] gateway route ext=0x%03X/0x%03X -> int=0x%03X/0x%03X mode=%d can=%lu@%luHz task_prio=%u\n",
+        "[BOOT] gateway route ext=0x%03X/0x%03X -> int=0x%03X/0x%03X profile=%s gateway_mode=%d ecu=%s hotpatch=%u can=%lu@%luHz task_prio=%u\n",
         BOARD_UDS_EXTERNAL_REQUEST_CAN_ID,
         BOARD_UDS_EXTERNAL_RESPONSE_CAN_ID,
         BOARD_UDS_INTERNAL_REQUEST_CAN_ID,
         BOARD_UDS_INTERNAL_RESPONSE_CAN_ID,
+        BOARD_BASELINE_PROFILE_NAME,
         (int)BOARD_UDS_GATEWAY_MODE,
+        BOARD_UDS_ECU_PROFILE_NAME,
+        (unsigned)BOARD_UDS_APPLY_SECURITY_ACCESS_HOTPATCH,
         (unsigned long)BOARD_CAN_BITRATE_BPS,
         (unsigned long)BOARD_MCP2515_OSCILLATOR_HZ,
         (unsigned)UDS_TASK_PRIORITY

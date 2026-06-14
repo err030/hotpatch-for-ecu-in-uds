@@ -96,6 +96,15 @@ def expect_payload(expected: bytes) -> Expectation:
     return check
 
 
+def expect_no_response(reason: str) -> Expectation:
+    def check(payload: bytes | None) -> tuple[bool, str]:
+        if payload is None:
+            return True, reason
+        return False, f"expected no response, got {hex_bytes(payload)}"
+
+    return check
+
+
 def expect_seed(payload: bytes | None) -> tuple[bool, str]:
     if payload is None:
         return False, "no response"
@@ -198,6 +207,16 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Run baseline UDS security tests over SocketCAN."
     )
+    parser.add_argument(
+        "--profile",
+        choices=("secure", "vulnerable", "gateway-secure", "hotpatched"),
+        default="secure",
+        help=(
+            "Expected board profile. secure expects 0x2E to reach a strict ECU; "
+            "vulnerable expects 0x2E to reach a vulnerable ECU; gateway-secure expects gateway drops; "
+            "hotpatched expects ECU-local high-risk DID quarantine after unlock."
+        ),
+    )
     parser.add_argument("--interface", default="can0", help="SocketCAN interface name")
     parser.add_argument("--request-id", default=DEFAULT_REQUEST_ID, type=lambda value: int(value, 0))
     parser.add_argument("--response-id", default=DEFAULT_RESPONSE_ID, type=lambda value: int(value, 0))
@@ -213,6 +232,31 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = build_parser().parse_args()
     results: list[UdsResult] = []
+    gateway_secure_profile = args.profile == "gateway-secure"
+    vulnerable_profile = args.profile == "vulnerable"
+    hotpatched_profile = args.profile == "hotpatched"
+    write_block_expectation = (
+        expect_no_response("gateway restricted profile dropped 0x2E before adjacent ECU")
+        if gateway_secure_profile
+        else expect_payload(bytes([0x7F, 0x2E, 0x22]))
+    )
+    write_block_expected = "<none>" if gateway_secure_profile else "7F2E22"
+    extended_write_expectation = (
+        expect_no_response("gateway restricted profile dropped 0x2E before adjacent ECU")
+        if gateway_secure_profile
+        else expect_payload(bytes([0x6E, 0x12, 0x34]))
+        if vulnerable_profile
+        else expect_payload(bytes([0x7F, 0x2E, 0x33]))
+    )
+    extended_write_expected = (
+        "<none>" if gateway_secure_profile else "6E1234" if vulnerable_profile else "7F2E33"
+    )
+    read_only_write_expectation = (
+        expect_no_response("gateway restricted profile dropped 0x2E before adjacent ECU")
+        if gateway_secure_profile
+        else expect_payload(bytes([0x7F, 0x2E, 0x31]))
+    )
+    read_only_write_expected = "<none>" if gateway_secure_profile else "7F2E31"
 
     with socket.socket(socket.PF_CAN, socket.SOCK_RAW, socket.CAN_RAW) as can_socket:
         try:
@@ -238,8 +282,8 @@ def main() -> int:
                 args,
                 "default_session_write_blocked",
                 bytes([0x2E, 0x12, 0x34, 0xAA, 0xBB]),
-                "7F2E22",
-                expect_payload(bytes([0x7F, 0x2E, 0x22])),
+                write_block_expected,
+                write_block_expectation,
             )
         )
         results.append(
@@ -256,10 +300,10 @@ def main() -> int:
             run_case(
                 can_socket,
                 args,
-                "extended_write_without_unlock_blocked",
+                "extended_write_without_unlock",
                 bytes([0x2E, 0x12, 0x34, 0xAA, 0xBB]),
-                "7F2E33",
-                expect_payload(bytes([0x7F, 0x2E, 0x33])),
+                extended_write_expected,
+                extended_write_expectation,
             )
         )
         results.append(
@@ -278,8 +322,8 @@ def main() -> int:
                 args,
                 "read_only_status_write_rejected",
                 bytes([0x2E, 0x10, 0x01, 0xAA]),
-                "7F2E31",
-                expect_payload(bytes([0x7F, 0x2E, 0x31])),
+                read_only_write_expected,
+                read_only_write_expectation,
             )
         )
         results.append(
@@ -379,26 +423,59 @@ def main() -> int:
                 expect_payload(bytes([0x67, 0x02])),
             )
         )
-        results.append(
-            run_case(
-                can_socket,
-                args,
-                "authorized_did_write_allowed",
-                bytes([0x2E, 0x12, 0x34, 0xAA, 0xBB]),
-                "6E1234",
-                expect_payload(bytes([0x6E, 0x12, 0x34])),
+        if gateway_secure_profile:
+            results.append(
+                run_case(
+                    can_socket,
+                    args,
+                    "authorized_did_write_blocked_at_gateway",
+                    bytes([0x2E, 0x12, 0x34, 0xAA, 0xBB]),
+                    "<none>",
+                    expect_no_response("gateway restricted profile dropped authorized 0x2E"),
+                )
             )
-        )
-        results.append(
-            run_case(
-                can_socket,
-                args,
-                "read_back_authorized_write",
-                bytes([0x22, 0x12, 0x34]),
-                "621234AABB",
-                expect_payload(bytes([0x62, 0x12, 0x34, 0xAA, 0xBB])),
+        elif hotpatched_profile:
+            results.append(
+                run_case(
+                    can_socket,
+                    args,
+                    "authorized_did_write_quarantined",
+                    bytes([0x2E, 0x12, 0x34, 0xAA, 0xBB]),
+                    "7F2E31",
+                    expect_payload(bytes([0x7F, 0x2E, 0x31])),
+                )
             )
-        )
+            results.append(
+                run_case(
+                    can_socket,
+                    args,
+                    "read_back_quarantined_write_did",
+                    bytes([0x22, 0x12, 0x34]),
+                    "621234",
+                    expect_payload(bytes([0x62, 0x12, 0x34])),
+                )
+            )
+        else:
+            results.append(
+                run_case(
+                    can_socket,
+                    args,
+                    "authorized_did_write_allowed",
+                    bytes([0x2E, 0x12, 0x34, 0xAA, 0xBB]),
+                    "6E1234",
+                    expect_payload(bytes([0x6E, 0x12, 0x34])),
+                )
+            )
+            results.append(
+                run_case(
+                    can_socket,
+                    args,
+                    "read_back_authorized_write",
+                    bytes([0x22, 0x12, 0x34]),
+                    "621234AABB",
+                    expect_payload(bytes([0x62, 0x12, 0x34, 0xAA, 0xBB])),
+                )
+            )
         results.append(
             run_case(
                 can_socket,
@@ -415,8 +492,8 @@ def main() -> int:
                 args,
                 "replay_write_after_reset_blocked",
                 bytes([0x2E, 0x12, 0x34, 0xAA, 0xBB]),
-                "7F2E22",
-                expect_payload(bytes([0x7F, 0x2E, 0x22])),
+                write_block_expected,
+                write_block_expectation,
             )
         )
 

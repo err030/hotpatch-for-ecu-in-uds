@@ -88,6 +88,12 @@ def expect_no_response(payload: bytes | None) -> tuple[bool, str]:
     return False, f"expected no response, got {hex_bytes(payload)}"
 
 
+def expect_gateway_drop(payload: bytes | None) -> tuple[bool, str]:
+    if payload is None:
+        return True, "gateway restricted profile dropped 0x2E before adjacent ECU"
+    return False, f"expected no response, got {hex_bytes(payload)}"
+
+
 def expect_seed(payload: bytes | None) -> tuple[bool, str]:
     if payload is None:
         return False, "no response"
@@ -196,6 +202,15 @@ def write_csv(path: Path, results: list[TestResult]) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run CVE-derived UDS attack tests.")
+    parser.add_argument(
+        "--profile",
+        choices=("secure", "vulnerable", "gateway-secure", "hotpatched"),
+        default="secure",
+        help=(
+            "Expected board profile. secure/vulnerable/hotpatched expect 0x2E to reach the ECU; "
+            "gateway-secure expects gateway-level 0x2E drops."
+        ),
+    )
     parser.add_argument("--interface", default="can0")
     parser.add_argument("--request-id", default=DEFAULT_REQUEST_ID, type=lambda value: int(value, 0))
     parser.add_argument("--response-id", default=DEFAULT_RESPONSE_ID, type=lambda value: int(value, 0))
@@ -211,6 +226,8 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = build_parser().parse_args()
     results: list[TestResult] = []
+    gateway_secure_profile = args.profile == "gateway-secure"
+    hotpatched_profile = args.profile == "hotpatched"
 
     with socket.socket(socket.PF_CAN, socket.SOCK_RAW, socket.CAN_RAW) as can_socket:
         can_socket.bind((args.interface,))
@@ -292,8 +309,12 @@ def main() -> int:
                 "DID write with zero-length data",
                 "UDS 2E1234",
                 lambda: send_uds(can_socket, args.request_id, args.response_id, bytes([0x2E, 0x12, 0x34]), args.timeout),
-                "7F2E13",
-                expect_payload(bytes([0x7F, 0x2E, 0x13])),
+                "<none>" if gateway_secure_profile else "7F2E31" if hotpatched_profile else "7F2E13",
+                expect_gateway_drop
+                if gateway_secure_profile
+                else expect_payload(bytes([0x7F, 0x2E, 0x31]))
+                if hotpatched_profile
+                else expect_payload(bytes([0x7F, 0x2E, 0x13])),
             )
         )
 

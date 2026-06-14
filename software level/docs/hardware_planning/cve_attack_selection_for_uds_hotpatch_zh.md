@@ -4,7 +4,16 @@
 
 ## 结论
 
-当前项目不应直接声称 ECU 固件“存在 Kintsugi 原论文测试过的某个 CVE”，除非固件真的包含对应 vulnerable component 和 vulnerable version。
+2026-06-14 更新：本文件只保留为 legacy malformed-request negative testing 的来源记录。
+主线 `0x2E` 攻击证据已改为 `0x27 SecurityAccess -> 0x2E WriteDataByIdentifier`
+流程，见：
+
+```text
+software level/docs/hardware_planning/uds_2e_security_access_attack_reference_zh.md
+```
+
+论文中不应把本文件里的 CVE-derived cases 写成本 ECU 的真实漏洞；它们只用于
+parser/length/security-state regression checks。
 
 当前硬件固件事实：
 
@@ -15,7 +24,7 @@
 - 没有接入 mbedTLS 证书解析路径
 - UDS over CAN 是本项目自己的 C 实现
 
-因此最合适的路线是：
+因此路线是：
 
 1. 保留 Kintsugi artifact 中“真实 CVE hotpatch”的证据链。
 2. 在本项目中做 `CVE-derived UDS attack model`，即把真实 CVE 的 bug class 映射到 UDS/CAN parser、DID write、security state 这些实际存在的攻击面。
@@ -55,23 +64,17 @@ Kintsugi README 明确说明其 E5 real-world CVE 实验覆盖 10 个 CVE，并�
 /home/beibei/Downloads/kintsugi_artifact_zenodo/hotpatches/zephyr/cve_2020_10028.c
 ```
 
-这些文件存在，但 `experiments/realworld_cves/README.md` 没有把它们列入 10 个 expected-output 实验。因此论文里只能写：
+这些文件存在，但 `experiments/realworld_cves/README.md` 没有把它们列入 10 个 expected-output 实验。因此论文里写：
 
 ```text
 Kintsugi artifact contains hotpatch source files for these CVEs.
 ```
 
-不能写：
+## 推荐的CVE-derived 攻击
 
-```text
-Kintsugi E5 experiment demonstrated these CVEs.
-```
+### 1：`CVE-2018-16603` derived malformed UDS single-frame length
 
-## 推荐加入本项目的 CVE-derived 攻击
-
-### 推荐 1：`CVE-2018-16603` derived malformed UDS single-frame length
-
-为什么适合：
+理由：
 
 - Kintsugi 明确做过该 CVE 的实验。
 - NVD 描述其核心问题是 `xProcessReceivedTCPPacket` 中短 TCP packet 导致 source/destination port 越界访问。
@@ -96,9 +99,9 @@ CAN ID 0x7E0, data[0] claims payload length 7, but actual DLC shorter than 8
 - 不应产生 positive response
 - 后续可以作为 Kintsugi guard 的目标：在 gateway/adapter 层提前 drop malformed frame
 
-### 推荐 2：`CVE-2018-16524` derived option-length/OOB UDS DID write
+### 2：`CVE-2018-16524` derived option-length/OOB UDS DID write
 
-为什么适合：
+理由：
 
 - Kintsugi 明确做过该 CVE 的实验。
 - Kintsugi hotpatch 对 `prvCheckOptions` 增加了 `pucLast > buffer + length` 的边界检查。
@@ -122,9 +125,9 @@ TCP option length over packet boundary -> DID write data length violates config 
 - 返回 `7F 2E 13`
 - 后续 hotpatch 可把 max/min length 或 DID policy 动态收紧
 
-### 推荐 3：`CVE-2020-10063` derived integer-overflow parser test
+### 3：`CVE-2020-10063` derived integer-overflow parser test
 
-为什么适合：
+理由：
 
 - Kintsugi 明确做过该 CVE 的实验。
 - Kintsugi hotpatch 对 CoAP option delta/length 加法后回绕进行检查。
@@ -141,9 +144,9 @@ TCP option length over packet boundary -> DID write data length violates config 
 CoAP option length/delta overflow -> ISO-TP multi-frame total length / DID record length overflow
 ```
 
-### 推荐 4：`CVE-2021-31572` FreeRTOS stream buffer integer overflow
+### 4：`CVE-2021-31572` FreeRTOS stream buffer integer overflow
 
-为什么谨慎：
+注意：
 
 - 本项目确实编译了 `stream_buffer.c`。
 - 但当前 `external/rtos/FreeRTOS-Kernel/include/task.h` 显示版本为 `V11.1.0+`，不是 NVD 中 `FreeRTOS before 10.4.3`。
@@ -162,19 +165,6 @@ CoAP option length/delta overflow -> ISO-TP multi-frame total length / DID recor
 2. `CVE-2018-16524-derived`: DID write length out-of-policy。
 3. `CVE-2020-10063-derived`: parser arithmetic/fuzz case，先放 software-level，等 ISO-TP multi-frame 后移到 hardware-level。
 
-这样论文可以写成：
-
-```text
-We selected CVEs from Kintsugi's real-world CVE experiment set and mapped their input-validation bug classes to the UDS-over-CAN ECU attack surface.
-```
-
-不能写成：
-
-```text
-The ECU is affected by CVE-2018-16603.
-```
-
-除非以后真的把 vulnerable FreeRTOS+TCP 版本和对应 TCP processing path 加进固件。
 
 ## 外部核对来源
 

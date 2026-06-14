@@ -21,11 +21,13 @@ void uds_ecu_init_strict(
     uint32_t response_id
 );
 
-void uds_ecu_init_demo_vulnerable(
+void uds_ecu_init_vulnerable(
     uds_ecu_t *ecu,
     uint32_t request_id,
     uint32_t response_id
 );
+
+void uds_ecu_apply_security_access_hotpatch(uds_ecu_t *ecu);
 
 bool uds_ecu_accepts_request_frame(
     const uds_ecu_t *ecu,

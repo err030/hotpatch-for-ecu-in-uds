@@ -263,6 +263,7 @@ def build_uds_security_hotpatch(
         "clear_unlock_on_failed_key",
         "clear_unlock_on_session_change",
         "disable_authorized_write_replay",
+        "quarantine_config_write_did_after_weak_security_access",
     )
     return HotpatchDescriptor(
         identifier=identifier,

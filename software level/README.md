@@ -30,7 +30,7 @@
 - 自动化测试
 - 硬件侧 `nRF52840 + FreeRTOS + MCP2515` baseline 工程
 - 硬件侧 gateway-routed strict ECU：`0x10 / 0x22 / 0x27 / 0x2E`
-- 硬件侧 baseline security 脚本和 CVE-derived UDS attack 脚本
+- 硬件侧 baseline security 脚本、SecurityAccess-derived `0x2E` attack 脚本和 legacy CVE-derived parser negative 脚本
 
 ## 当前目录结构
 
@@ -201,13 +201,13 @@ python3 charts/export_hotpatch_evaluation.py
 - `hardware level/board_baseline/`：nRF52840 FreeRTOS 工程、MCP2515 SPI/CAN、RTT 日志、gateway path
 - `hardware level/app/`：UDS protocol/link/dispatcher/ECU/gateway/task/runtime 模块
 - `hardware level/third_party/kintsugi_minimal/` 和 `kintsugi/`：Kintsugi 运行时组件与 hotpatch linker sections
-- CANable2.0 / `can0` 到 nRF52840 baseline 的真实 UDS security 和 CVE-derived attack 测试记录
+- CANable2.0 / `can0` 到 nRF52840 baseline 的真实 UDS security 和 SecurityAccess-derived `0x2E` attack 测试记录
+- 默认 `secure` board profile、显式 `vulnerable` attack profile 和 `gateway-secure` 对照 profile
 
 当前还没有完成：
 
 - 外部框架级差分测试
 - 完整 ISO-TP 多帧 ECU 侧重组与 flow-control
-- secure/demo 两套 board profile 和 profile 化 gateway 配置
 - C dispatcher host 单元测试 / property 测试
 - 真实硬件上的 Kintsugi 式 guard / MPU / context-switch integration 闭环
 - 真正的 RTOS task context / IRQ preemption 级 hotpatch 应用

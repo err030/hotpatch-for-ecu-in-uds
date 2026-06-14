@@ -12,7 +12,7 @@
 <rect x="60" y="460" width="13" height="38" rx="12" fill="#e76f51" /><text x="72" y="450" font-size="18" fill="#202020">OTA-only block rate</text><text x="83" y="490" font-size="18" fill="#202020">3.23%</text>
 
 <text x="640" y="150" font-size="26" font-weight="700" fill="#202020">Resource And Real-Time Notes</text>
-<text x="640" y="180" font-size="20" fill="#202020">Reserved memory: 672 B</text><text x="640" y="214" font-size="20" fill="#202020">Peak quarantine: 64 B</text><text x="640" y="248" font-size="20" fill="#202020">Peak active code: 64 B</text><text x="640" y="282" font-size="20" fill="#202020">Validation+scheduling+apply: 1.460 ms</text><text x="640" y="316" font-size="20" fill="#202020">Guard overhead: 0.050 ms</text><text x="640" y="350" font-size="20" fill="#202020">Attack chain latency vulnerable/patched: 3.350 / 3.500 ms</text><text x="640" y="384" font-size="20" fill="#202020">Exposure reduction ratio: 0.578</text>
+<text x="640" y="180" font-size="20" fill="#202020">Reserved memory: 672 B</text><text x="640" y="214" font-size="20" fill="#202020">Peak quarantine: 80 B</text><text x="640" y="248" font-size="20" fill="#202020">Peak active code: 80 B</text><text x="640" y="282" font-size="20" fill="#202020">Validation+scheduling+apply: 1.620 ms</text><text x="640" y="316" font-size="20" fill="#202020">Guard overhead: 0.060 ms</text><text x="640" y="350" font-size="20" fill="#202020">Attack chain latency vulnerable/patched: 3.350 / 3.500 ms</text><text x="640" y="384" font-size="20" fill="#202020">Exposure reduction ratio: 0.578</text>
 
 <rect x="640" y="470" width="470" height="180" rx="18" fill="#f1f5f9" stroke="#d6dce4" />
 <text x="665" y="510" font-size="22" font-weight="700" fill="#202020">Interpretation</text>

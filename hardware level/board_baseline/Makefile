@@ -1,6 +1,7 @@
 PROJECT_NAME     := hotpatch_context_tampering
 TARGETS          := nrf52840_xxaa
 OUTPUT_DIRECTORY := build
+BOARD_BASELINE_PROFILE ?= secure
 
 PROJ_DIR := .
 APP_DIR := ../app
@@ -11,6 +12,18 @@ PATCH_DIR := $(REPO_ROOT)/hotpatches
 RTOS_DIR := $(REPO_ROOT)/external/rtos/FreeRTOS-Kernel
 GNU_INSTALL_ROOT ?=
 GNU_PREFIX ?= arm-none-eabi
+
+ifeq ($(BOARD_BASELINE_PROFILE),secure)
+BOARD_BASELINE_PROFILE_DEFINE := BOARD_BASELINE_PROFILE_SECURE
+else ifeq ($(BOARD_BASELINE_PROFILE),vulnerable)
+BOARD_BASELINE_PROFILE_DEFINE := BOARD_BASELINE_PROFILE_VULNERABLE
+else ifeq ($(BOARD_BASELINE_PROFILE),gateway-secure)
+BOARD_BASELINE_PROFILE_DEFINE := BOARD_BASELINE_PROFILE_GATEWAY_SECURE
+else ifeq ($(BOARD_BASELINE_PROFILE),hotpatched)
+BOARD_BASELINE_PROFILE_DEFINE := BOARD_BASELINE_PROFILE_HOTPATCHED
+else
+$(error Unsupported BOARD_BASELINE_PROFILE '$(BOARD_BASELINE_PROFILE)'. Use secure, vulnerable, gateway-secure, or hotpatched)
+endif
 
 $(OUTPUT_DIRECTORY)/nrf52840_xxaa.out: \
   LINKER_SCRIPT  := FreeRTOS_gcc_nrf52.ld
@@ -159,6 +172,7 @@ CFLAGS += -DNRF52840_XXAA
 CFLAGS += -DBOARD_USE_FREERTOS
 CFLAGS += -DBOARD_USE_NRFX_SPIM
 CFLAGS += -DBOARD_LOG_USE_SEGGER_RTT
+CFLAGS += -DBOARD_BASELINE_PROFILE=$(BOARD_BASELINE_PROFILE_DEFINE)
 CFLAGS += -mcpu=cortex-m4
 CFLAGS += -mthumb -mabi=aapcs
 CFLAGS += -Wall
@@ -183,6 +197,7 @@ ASMFLAGS += -DNRF52840_XXAA
 ASMFLAGS += -DBOARD_USE_FREERTOS
 ASMFLAGS += -DBOARD_USE_NRFX_SPIM
 ASMFLAGS += -DBOARD_LOG_USE_SEGGER_RTT
+ASMFLAGS += -DBOARD_BASELINE_PROFILE=$(BOARD_BASELINE_PROFILE_DEFINE)
 
 # Linker flags
 LDFLAGS += $(OPT)
@@ -215,8 +230,16 @@ default: nrf52840_xxaa
 help:
 	@echo following targets are available:
 	@echo		nrf52840_xxaa
+	@echo		secure     - clean build with permissive gateway and strict ECU
+	@echo		vulnerable - clean build with permissive gateway and vulnerable ECU
+	@echo		gateway-secure - clean build with restricted gateway profile
+	@echo		hotpatched - clean build with permissive gateway and ECU-local hotpatch
 	@echo		sdk_config - starting external tool for editing sdk_config.h
 	@echo		flash      - flashing binary
+	@echo		flash-secure - clean build and flash secure profile
+	@echo		flash-vulnerable - clean build and flash vulnerable profile
+	@echo		flash-gateway-secure - clean build and flash gateway-secure profile
+	@echo		flash-hotpatched - clean build and flash hotpatched profile
 
 TEMPLATE_PATH := $(SDK_ROOT)/components/toolchain/gcc
 
@@ -225,13 +248,45 @@ include $(TEMPLATE_PATH)/Makefile.common
 
 $(foreach target, $(TARGETS), $(call define_target, $(target)))
 
-.PHONY: flash erase
+.PHONY: secure vulnerable gateway-secure hotpatched flash flash-secure flash-vulnerable flash-gateway-secure flash-hotpatched erase
+
+secure:
+	$(MAKE) clean
+	$(MAKE) nrf52840_xxaa BOARD_BASELINE_PROFILE=secure
+
+vulnerable:
+	$(MAKE) clean
+	$(MAKE) nrf52840_xxaa BOARD_BASELINE_PROFILE=vulnerable
+
+gateway-secure:
+	$(MAKE) clean
+	$(MAKE) nrf52840_xxaa BOARD_BASELINE_PROFILE=gateway-secure
+
+hotpatched:
+	$(MAKE) clean
+	$(MAKE) nrf52840_xxaa BOARD_BASELINE_PROFILE=hotpatched
 
 # Flash the program
 flash: default
 	@echo Flashing: $(OUTPUT_DIRECTORY)/nrf52840_xxaa.hex
 	nrfjprog -f nrf52 --program $(OUTPUT_DIRECTORY)/nrf52840_xxaa.hex --sectorerase --verify
 	nrfjprog -f nrf52 --reset
+
+flash-secure:
+	$(MAKE) secure
+	$(MAKE) flash BOARD_BASELINE_PROFILE=secure
+
+flash-vulnerable:
+	$(MAKE) vulnerable
+	$(MAKE) flash BOARD_BASELINE_PROFILE=vulnerable
+
+flash-gateway-secure:
+	$(MAKE) gateway-secure
+	$(MAKE) flash BOARD_BASELINE_PROFILE=gateway-secure
+
+flash-hotpatched:
+	$(MAKE) hotpatched
+	$(MAKE) flash BOARD_BASELINE_PROFILE=hotpatched
 
 erase:
 	nrfjprog -f nrf52 --eraseall

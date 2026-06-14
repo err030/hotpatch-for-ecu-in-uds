@@ -14,7 +14,7 @@ void uds_ecu_init_strict(
     uds_dispatcher_init_strict(&ecu->dispatcher);
 }
 
-void uds_ecu_init_demo_vulnerable(
+void uds_ecu_init_vulnerable(
     uds_ecu_t *ecu,
     uint32_t request_id,
     uint32_t response_id
@@ -25,7 +25,16 @@ void uds_ecu_init_demo_vulnerable(
     }
 
     uds_ecu_link_init(&ecu->link, request_id, response_id);
-    uds_dispatcher_init_demo_vulnerable(&ecu->dispatcher);
+    uds_dispatcher_init_vulnerable(&ecu->dispatcher);
+}
+
+void uds_ecu_apply_security_access_hotpatch(uds_ecu_t *ecu)
+{
+    if (ecu == NULL) {
+        return;
+    }
+
+    uds_dispatcher_apply_security_access_hotpatch(&ecu->dispatcher);
 }
 
 bool uds_ecu_accepts_request_frame(

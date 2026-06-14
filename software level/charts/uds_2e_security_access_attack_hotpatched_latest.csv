@@ -1,0 +1,6 @@
+step,request_payload,response_payload,expected,passed,note
+enter_extended_session,1003,500300321388,500300321388,true,matched 500300321388
+request_security_seed,2701,67011201,6701xxxx,true,seed=0x1201
+send_key_from_weak_transform,2702B75B,6702,6702,true,matched 6702
+write_did_after_security_access,2E1234CAFE,7F2E31,7F2E31,true,matched 7F2E31
+read_back_quarantined_did,221234,621234,621234,true,matched 621234

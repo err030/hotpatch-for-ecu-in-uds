@@ -140,7 +140,9 @@
 - 定义 `nRF52840-DK <-> MCP2515` 的默认 SPI 引脚。
 - 定义 `MCP2515` 默认 `CNF1/2/3`。
 - 定义 `gateway external/internal request/response ID`。
-- 定义默认 `UDS_GATEWAY_MODE_MISCONFIGURED`。
+- 定义 profile 选择：`secure` profile 使用 permissive/misconfigured gateway
+  加 strict ECU，`vulnerable` profile 使用 permissive/misconfigured gateway 加 vulnerable
+  ECU，`gateway-secure` profile 使用 restricted gateway 加 strict ECU。
 
 目的：
 

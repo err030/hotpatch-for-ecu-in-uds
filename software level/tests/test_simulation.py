@@ -5,6 +5,7 @@
 import unittest
 
 from src.hotpatch_uds.ecu import (
+    HotpatchedECU,
     PatchableECU,
     PatchedECU,
     READ_ONLY_STATUS_DID,
@@ -51,6 +52,20 @@ class SimulationTests(unittest.TestCase):
         self.assertTrue(write_result.response.positive)
         self.assertEqual(write_result.response.sid, 0x6E)
 
+    def test_hotpatched_blocks_write_even_after_weak_security_access_unlock(self) -> None:
+        server = MockEcuServer(HotpatchedECU())
+        client = build_default_client_and_server(server)
+
+        client.change_to_extended_session()
+        seed_result = client.request_seed()
+        key = derive_key_from_seed(seed_result.response)
+        unlock_result = client.send_key(key)
+        write_result = client.write_data_by_identifier(0x1234, b"\xCA\xFE")
+
+        self.assertTrue(unlock_result.response.positive)
+        self.assertFalse(write_result.response.positive)
+        self.assertEqual(write_result.response.nrc, 0x31)
+
     def test_read_back_written_did(self) -> None:
         server = MockEcuServer(PatchedECU())
         client = build_default_client_and_server(server)
@@ -92,6 +107,21 @@ class SimulationTests(unittest.TestCase):
         self.assertTrue(before_patch.response.positive)
         self.assertFalse(after_patch.response.positive)
         self.assertEqual(after_patch.response.nrc, 0x33)
+
+    def test_runtime_hotpatch_blocks_security_access_derived_write(self) -> None:
+        server = MockEcuServer(PatchableECU())
+        client = build_default_client_and_server(server)
+
+        server.apply_patch()
+        client.change_to_extended_session()
+        seed_result = client.request_seed()
+        key = derive_key_from_seed(seed_result.response)
+        unlock_result = client.send_key(key)
+        write_result = client.write_data_by_identifier(0x1234, b"\xCA\xFE")
+
+        self.assertTrue(unlock_result.response.positive)
+        self.assertFalse(write_result.response.positive)
+        self.assertEqual(write_result.response.nrc, 0x31)
 
     def test_gateway_routed_trace_uses_internal_ids(self) -> None:
         server = MockEcuServer(VulnerableECU())
