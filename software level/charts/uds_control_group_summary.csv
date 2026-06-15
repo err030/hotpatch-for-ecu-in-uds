@@ -1,0 +1,5 @@
+profile,workload,total_cases,successful_cases,success_rate,blocked_or_failed_rate
+before_hotpatch,benign_diagnostic,1000,1000,1.0000,0.0000
+before_hotpatch,attack_mutation,1000,787,0.7870,0.2130
+after_hotpatch,benign_diagnostic,1000,1000,1.0000,0.0000
+after_hotpatch,attack_mutation,1000,0,0.0000,1.0000

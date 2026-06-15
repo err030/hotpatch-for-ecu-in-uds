@@ -12,12 +12,18 @@ if str(ROOT) not in sys.path:
 from src.hotpatch_uds.attack_mutation import (  # noqa: E402
     PROFILE_AFTER,
     PROFILE_BEFORE,
+    benign_detail_csv,
+    build_benign_diagnostic_corpus,
     build_uds_2e_mutation_corpus,
+    control_group_summary_csv,
+    control_group_summary_markdown,
     mutation_detail_csv,
     mutation_rates_svg,
     mutation_summary_csv,
     mutation_summary_markdown,
+    run_benign_diagnostic_campaign,
     run_uds_2e_mutation_campaign,
+    summarize_benign_diagnostic_outcomes,
     summarize_uds_2e_mutation_outcomes,
 )
 
@@ -27,11 +33,18 @@ CHARTS_DIR = ROOT / "charts"
 
 def main() -> None:
     corpus = build_uds_2e_mutation_corpus(count=1000)
+    benign_corpus = build_benign_diagnostic_corpus(count=1000)
     before = run_uds_2e_mutation_campaign(corpus, profile=PROFILE_BEFORE)
     after = run_uds_2e_mutation_campaign(corpus, profile=PROFILE_AFTER)
+    benign_before = run_benign_diagnostic_campaign(benign_corpus, profile=PROFILE_BEFORE)
+    benign_after = run_benign_diagnostic_campaign(benign_corpus, profile=PROFILE_AFTER)
     summaries = (
         summarize_uds_2e_mutation_outcomes(before),
         summarize_uds_2e_mutation_outcomes(after),
+    )
+    benign_summaries = (
+        summarize_benign_diagnostic_outcomes(benign_before),
+        summarize_benign_diagnostic_outcomes(benign_after),
     )
 
     (CHARTS_DIR / "uds_2e_mutation_attack_detail.csv").write_text(
@@ -50,11 +63,28 @@ def main() -> None:
         mutation_rates_svg(summaries),
         encoding="utf-8",
     )
+    (CHARTS_DIR / "uds_benign_diagnostic_control_detail.csv").write_text(
+        benign_detail_csv(benign_before + benign_after),
+        encoding="utf-8",
+    )
+    (CHARTS_DIR / "uds_control_group_summary.csv").write_text(
+        control_group_summary_csv(benign_summaries, summaries),
+        encoding="utf-8",
+    )
+    (CHARTS_DIR / "UDS_CONTROL_GROUP_SUMMARY.md").write_text(
+        control_group_summary_markdown(benign_summaries, summaries),
+        encoding="utf-8",
+    )
 
     for summary in summaries:
         print(
             f"{summary.profile}: {summary.attack_successes}/{summary.total_cases} "
             f"successes ({summary.attack_success_rate:.2%})"
+        )
+    for summary in benign_summaries:
+        print(
+            f"{summary.profile} benign: {summary.passed_cases}/{summary.total_cases} "
+            f"passed ({summary.pass_rate:.2%})"
         )
 
 

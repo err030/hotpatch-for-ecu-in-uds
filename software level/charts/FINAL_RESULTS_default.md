@@ -70,6 +70,12 @@
   - after hotpatch: `0/1000` attack successes, `100.00%` observed block/fail rate
   - valid attack-shaped cases: `787`, all `787` rejected by the hotpatched DID quarantine
   - artifacts: `software level/charts/uds_2e_mutation_attack_summary.csv`, `software level/charts/uds_2e_mutation_attack_detail.csv`, `software level/charts/uds_2e_mutation_attack_rates.svg`
+- Benign diagnostic control group: passed
+  - corpus: deterministic `1000` ordinary diagnostic requests using session control, DID reads, and SecurityAccess unlock
+  - before hotpatch: `1000/1000` benign requests passed
+  - after hotpatch: `1000/1000` benign requests passed
+  - contrast: attack mutation success changed from `787/1000` to `0/1000`
+  - artifacts: `software level/charts/uds_control_group_summary.csv`, `software level/charts/uds_benign_diagnostic_control_detail.csv`, `software level/thesis_figures/pdf/fig11_control_group_success_rates.pdf`
 - OTA-only cumulative exposure window: `6605` min
 - Hotpatch-first cumulative exposure window: `2787` min
 - Relative reduction: `0.578`
@@ -94,5 +100,6 @@
 - The SecurityAccess-derived `0x2E` attack shows the stronger hotpatch target: a routed, protocol-valid `0x27 -> 0x2E` sequence is not stopped by gateway policy and succeeds when the seed/key transform is weak.
 - The hotpatched and Kintsugi-runtime profiles block that same sequence at ECU-local DID policy: `0x27` still succeeds, but authorized `0x2E` to high-risk DID `0x1234` is quarantined with `7F2E31`.
 - The mutation campaign turns the single-chain result into a thesis chart: pre-hotpatch attack success is high but not perfect because the denominator includes plausible mutated attempts; post-hotpatch success is `0/1000` for the tested corpus.
+- The benign-control campaign strengthens the evaluation: ordinary UDS diagnostic requests remain `1000/1000` successful before and after hotpatching, while attack mutations drop from `787/1000` to `0/1000`.
 - The current data supports the thesis claim that a Kintsugi-style hotpatch can reduce the OTA pre-update exposure window at modest software-level cost.
 - Remaining risk should be stated explicitly: the `100.00%` post-hotpatch block/fail rate is an observed result over this deterministic corpus and the current hardware checks, not a formal proof over every UDS input sequence.

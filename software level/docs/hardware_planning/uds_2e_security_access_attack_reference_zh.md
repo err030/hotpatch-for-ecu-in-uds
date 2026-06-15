@@ -91,6 +91,20 @@ software level/charts/export_uds_attack_mutation.py
 | `before_hotpatch` | 1000 | 787 | 787 | 78.70% | 21.30% | 0 |
 | `after_hotpatch` | 1000 | 787 | 0 | 0.00% | 100.00% | 787 |
 
+2026-06-15 追加普通诊断请求对照组，验证 hotpatch 不是把正常 UDS 路径一并破坏：
+
+| Profile | Workload | Cases | Successful cases | Success rate |
+|---|---|---:|---:|---:|
+| `before_hotpatch` | benign diagnostic | 1000 | 1000 | 100.00% |
+| `before_hotpatch` | attack mutation | 1000 | 787 | 78.70% |
+| `after_hotpatch` | benign diagnostic | 1000 | 1000 | 100.00% |
+| `after_hotpatch` | attack mutation | 1000 | 0 | 0.00% |
+
+其中 benign diagnostic workload 包含 `0x10` session control、`0x22` DID read 和
+`0x27` SecurityAccess unlock，不包含高风险 `0x2E` 配置写入。这个对照组用于证明
+hotpatch 的效果是 selective mitigation：正常诊断仍可用，攻击性 `0x27 -> 0x2E`
+写链被降低到 `0/1000` 成功。
+
 论文图表 artifact：
 
 ```text
@@ -98,6 +112,10 @@ software level/charts/uds_2e_mutation_attack_summary.csv
 software level/charts/uds_2e_mutation_attack_detail.csv
 software level/charts/UDS_2E_MUTATION_ATTACK_SUMMARY.md
 software level/charts/uds_2e_mutation_attack_rates.svg
+software level/charts/uds_control_group_summary.csv
+software level/charts/uds_benign_diagnostic_control_detail.csv
+software level/charts/UDS_CONTROL_GROUP_SUMMARY.md
+software level/thesis_figures/pdf/fig11_control_group_success_rates.pdf
 ```
 
 解释边界：`before_hotpatch` 不是 100%，因为分母包含变异后的合理诊断尝试，而不是只

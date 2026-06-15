@@ -30,6 +30,13 @@ KEY_SKIP = "skip_key"
 PROFILE_BEFORE = "before_hotpatch"
 PROFILE_AFTER = "after_hotpatch"
 
+BENIGN_DEFAULT_SESSION = "default_session"
+BENIGN_EXTENDED_SESSION = "extended_session"
+BENIGN_READ_STATUS_DID = "read_status_did"
+BENIGN_READ_CONFIG_DID = "read_config_did"
+BENIGN_SECURITY_UNLOCK = "security_unlock"
+BENIGN_EXTENDED_READ_SEQUENCE = "extended_read_sequence"
+
 
 @dataclass(frozen=True)
 class Uds2eMutationCase:
@@ -83,6 +90,33 @@ class Uds2eMutationSummary:
     @property
     def blocked_or_failed_rate(self) -> float:
         return 1.0 - self.attack_success_rate
+
+
+@dataclass(frozen=True)
+class UdsBenignDiagnosticCase:
+    case_id: int
+    gateway_mode: str
+    operation: str
+
+
+@dataclass(frozen=True)
+class UdsBenignDiagnosticOutcome:
+    profile: str
+    case: UdsBenignDiagnosticCase
+    passed: bool
+    responses: tuple[str, ...]
+    failure_reason: str
+
+
+@dataclass(frozen=True)
+class UdsBenignDiagnosticSummary:
+    profile: str
+    total_cases: int
+    passed_cases: int
+
+    @property
+    def pass_rate(self) -> float:
+        return self.passed_cases / self.total_cases if self.total_cases else 0.0
 
 
 def build_uds_2e_mutation_corpus(
@@ -158,6 +192,43 @@ def build_uds_2e_mutation_corpus(
     return tuple(cases)
 
 
+def build_benign_diagnostic_corpus(
+    count: int = 1000,
+    seed: int = 20260616,
+) -> tuple[UdsBenignDiagnosticCase, ...]:
+    """Build benign UDS requests that should continue to work after hotpatching."""
+    rng = random.Random(seed)
+    cases: list[UdsBenignDiagnosticCase] = []
+    for case_id in range(count):
+        gateway_mode = _weighted_choice(
+            rng,
+            (
+                (GATEWAY_MODE_MISCONFIGURED, 0.90),
+                (GATEWAY_MODE_OPEN, 0.05),
+                (GATEWAY_MODE_RESTRICTED, 0.05),
+            ),
+        )
+        operation = _weighted_choice(
+            rng,
+            (
+                (BENIGN_DEFAULT_SESSION, 0.15),
+                (BENIGN_EXTENDED_SESSION, 0.20),
+                (BENIGN_READ_STATUS_DID, 0.20),
+                (BENIGN_READ_CONFIG_DID, 0.15),
+                (BENIGN_SECURITY_UNLOCK, 0.20),
+                (BENIGN_EXTENDED_READ_SEQUENCE, 0.10),
+            ),
+        )
+        cases.append(
+            UdsBenignDiagnosticCase(
+                case_id=case_id,
+                gateway_mode=gateway_mode,
+                operation=operation,
+            )
+        )
+    return tuple(cases)
+
+
 def run_uds_2e_mutation_campaign(
     cases: tuple[Uds2eMutationCase, ...] | None = None,
     *,
@@ -172,6 +243,23 @@ def run_uds_2e_mutation_campaign(
         server = MockEcuServer(HotpatchedECU() if profile == PROFILE_AFTER else PatchedECU())
         client = build_gateway_routed_client_and_server(server, gateway_mode=case.gateway_mode)
         outcomes.append(_run_single_case(profile, client, case))
+    return tuple(outcomes)
+
+
+def run_benign_diagnostic_campaign(
+    cases: tuple[UdsBenignDiagnosticCase, ...] | None = None,
+    *,
+    profile: str,
+) -> tuple[UdsBenignDiagnosticOutcome, ...]:
+    if profile not in {PROFILE_BEFORE, PROFILE_AFTER}:
+        raise ValueError(f"Unsupported benign diagnostic profile: {profile}")
+
+    selected_cases = cases if cases is not None else build_benign_diagnostic_corpus()
+    outcomes: list[UdsBenignDiagnosticOutcome] = []
+    for case in selected_cases:
+        server = MockEcuServer(HotpatchedECU() if profile == PROFILE_AFTER else PatchedECU())
+        client = build_gateway_routed_client_and_server(server, gateway_mode=case.gateway_mode)
+        outcomes.append(_run_single_benign_case(profile, client, case))
     return tuple(outcomes)
 
 
@@ -197,6 +285,18 @@ def summarize_uds_2e_mutation_outcomes(
             for outcome in outcomes
             if outcome.valid_attack_shape and outcome.write_response == "7F2E31"
         ),
+    )
+
+
+def summarize_benign_diagnostic_outcomes(
+    outcomes: tuple[UdsBenignDiagnosticOutcome, ...],
+) -> UdsBenignDiagnosticSummary:
+    if not outcomes:
+        return UdsBenignDiagnosticSummary(profile="empty", total_cases=0, passed_cases=0)
+    return UdsBenignDiagnosticSummary(
+        profile=outcomes[0].profile,
+        total_cases=len(outcomes),
+        passed_cases=sum(1 for outcome in outcomes if outcome.passed),
     )
 
 
@@ -308,6 +408,124 @@ def mutation_summary_markdown(summaries: tuple[Uds2eMutationSummary, ...]) -> st
             "the single hand-picked successful chain. The post-hotpatch result is an",
             "observed block rate over this corpus; untested attack variants remain out",
             "of scope and should be stated as residual risk.",
+            "",
+        )
+    )
+    return "\n".join(lines)
+
+
+def benign_detail_csv(outcomes: tuple[UdsBenignDiagnosticOutcome, ...]) -> str:
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(
+        (
+            "profile",
+            "case_id",
+            "gateway_mode",
+            "operation",
+            "passed",
+            "responses",
+            "failure_reason",
+        )
+    )
+    for outcome in outcomes:
+        writer.writerow(
+            (
+                outcome.profile,
+                outcome.case.case_id,
+                outcome.case.gateway_mode,
+                outcome.case.operation,
+                str(outcome.passed).lower(),
+                " ".join(outcome.responses),
+                outcome.failure_reason,
+            )
+        )
+    return buffer.getvalue()
+
+
+def control_group_summary_csv(
+    benign_summaries: tuple[UdsBenignDiagnosticSummary, ...],
+    attack_summaries: tuple[Uds2eMutationSummary, ...],
+) -> str:
+    attack_by_profile = {summary.profile: summary for summary in attack_summaries}
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(
+        (
+            "profile",
+            "workload",
+            "total_cases",
+            "successful_cases",
+            "success_rate",
+            "blocked_or_failed_rate",
+        )
+    )
+    for benign in benign_summaries:
+        writer.writerow(
+            (
+                benign.profile,
+                "benign_diagnostic",
+                benign.total_cases,
+                benign.passed_cases,
+                f"{benign.pass_rate:.4f}",
+                f"{1.0 - benign.pass_rate:.4f}",
+            )
+        )
+        attack = attack_by_profile[benign.profile]
+        writer.writerow(
+            (
+                attack.profile,
+                "attack_mutation",
+                attack.total_cases,
+                attack.attack_successes,
+                f"{attack.attack_success_rate:.4f}",
+                f"{attack.blocked_or_failed_rate:.4f}",
+            )
+        )
+    return buffer.getvalue()
+
+
+def control_group_summary_markdown(
+    benign_summaries: tuple[UdsBenignDiagnosticSummary, ...],
+    attack_summaries: tuple[Uds2eMutationSummary, ...],
+) -> str:
+    attack_by_profile = {summary.profile: summary for summary in attack_summaries}
+    lines = [
+        "# UDS Benign-Control vs Attack-Mutation Summary",
+        "",
+        "| Profile | Workload | Cases | Successes | Success rate | Blocked/failed rate |",
+        "|---|---|---:|---:|---:|---:|",
+    ]
+    for benign in benign_summaries:
+        rows = (
+            (
+                benign.profile,
+                "benign diagnostic",
+                benign.total_cases,
+                benign.passed_cases,
+                benign.pass_rate,
+                1.0 - benign.pass_rate,
+            ),
+            (
+                benign.profile,
+                "attack mutation",
+                attack_by_profile[benign.profile].total_cases,
+                attack_by_profile[benign.profile].attack_successes,
+                attack_by_profile[benign.profile].attack_success_rate,
+                attack_by_profile[benign.profile].blocked_or_failed_rate,
+            ),
+        )
+        for profile, workload, total, successes, success_rate, blocked_rate in rows:
+            lines.append(
+                f"| {profile} | {workload} | {total} | {successes} | "
+                f"{success_rate:.2%} | {blocked_rate:.2%} |"
+            )
+    lines.extend(
+        (
+            "",
+            "Interpretation: benign diagnostic requests are expected to remain usable",
+            "before and after the hotpatch. The hotpatch should selectively reduce",
+            "attack mutation success, not break normal UDS diagnostic workflows.",
             "",
         )
     )
@@ -428,6 +646,57 @@ def _run_single_case(
         read_response=read_response,
         failure_reason=failure_reason,
     )
+
+
+def _run_single_benign_case(
+    profile: str,
+    client: UdsClient,
+    case: UdsBenignDiagnosticCase,
+) -> UdsBenignDiagnosticOutcome:
+    responses: list[str] = []
+    try:
+        if case.operation == BENIGN_DEFAULT_SESSION:
+            responses.append(_payload_hex(client.change_to_default_session().response))
+        elif case.operation == BENIGN_EXTENDED_SESSION:
+            responses.append(_payload_hex(client.change_to_extended_session().response))
+        elif case.operation == BENIGN_READ_STATUS_DID:
+            responses.append(_payload_hex(client.read_data_by_identifier(0x1001).response))
+        elif case.operation == BENIGN_READ_CONFIG_DID:
+            responses.append(_payload_hex(client.read_data_by_identifier(VALID_WRITE_DID).response))
+        elif case.operation == BENIGN_SECURITY_UNLOCK:
+            responses.extend(_run_security_unlock(client))
+        elif case.operation == BENIGN_EXTENDED_READ_SEQUENCE:
+            responses.append(_payload_hex(client.change_to_extended_session().response))
+            responses.append(_payload_hex(client.read_data_by_identifier(0x1001).response))
+            responses.append(_payload_hex(client.read_data_by_identifier(VALID_WRITE_DID).response))
+        else:
+            raise ValueError(f"Unsupported benign diagnostic operation: {case.operation}")
+    except Exception as exc:  # noqa: BLE001 - records transport and parser failures.
+        return UdsBenignDiagnosticOutcome(
+            profile=profile,
+            case=case,
+            passed=False,
+            responses=tuple(responses),
+            failure_reason=exc.__class__.__name__,
+        )
+
+    passed = all(not response.startswith("7F") for response in responses)
+    return UdsBenignDiagnosticOutcome(
+        profile=profile,
+        case=case,
+        passed=passed,
+        responses=tuple(responses),
+        failure_reason="-" if passed else "negative_response",
+    )
+
+
+def _run_security_unlock(client: UdsClient) -> list[str]:
+    responses: list[str] = []
+    responses.append(_payload_hex(client.change_to_extended_session().response))
+    seed_result = client.request_seed()
+    responses.append(_payload_hex(seed_result.response))
+    responses.append(_payload_hex(client.send_key(derive_key_from_seed(seed_result.response)).response))
+    return responses
 
 
 def _payload_hex(response: UDSResponse) -> str:
