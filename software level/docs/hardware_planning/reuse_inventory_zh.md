@@ -29,7 +29,7 @@
 ## 2. 适合复用的 BMS / UART 业务资产
 
 - `/home/beibei/Downloads/kintsugi_artifact_zenodo/experiments/security/before_patching/src/main.c`
-  这里面已经有一个完整的 `nRF52840 + FreeRTOS + BMS demo`，包含：
+  这里面已经有一个完整的 `nRF52840 + FreeRTOS + BMS reference workload`，包含：
   - `BMS_MON / BMS_EST / BMS_PROT / BMS_COMM / BMS_UART_RX`
   - 全局状态、阈值表、校准表
   - UART 帧解析器

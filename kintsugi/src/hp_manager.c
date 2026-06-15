@@ -129,6 +129,26 @@ hp_manager_process_hotpatch(const uint8_t *data, uint32_t size, uint32_t *identi
 
 __ramfunc
 enum hp_manager_result
+hp_manager_receive_hotpatch(const uint8_t *data, uint32_t size, uint32_t *identifier) {
+    enum hp_manager_result manager_result;
+
+    if (identifier == NULL) {
+        return HP_MANAGER_ERROR_INVALID_IDENTIFIER_PTR;
+    }
+    if (size > (HP_MAX_CODE_SIZE + sizeof(struct hp_header))) {
+        DEBUG_LOG("[error]: size of hotpatch exceeds quarantine size.\r\n");
+        return HP_MANAGER_ERROR_INVALID_SIZE;
+    }
+
+    memcpy(hp_quarantine_memory, data, size);
+    manager_result = hp_manager_process_hotpatch(hp_quarantine_memory, size, identifier);
+    memset(hp_quarantine_memory, 0, size);
+
+    return manager_result;
+}
+
+__ramfunc
+enum hp_manager_result
 hp_manager_schedule_hotpatch(uint32_t identifier) {
     enum hp_slot_result slot_result;
     struct hp_slot *slot;
@@ -184,6 +204,29 @@ hp_manager_schedule_hotpatch(uint32_t identifier) {
 
     // finally, update the status such that the hotpatch can be applied by the applicator
     g_applicator_context.status = HP_APPLCIATOR_CONTEXT_ACTIVE;
+
+    return HP_MANAGER_SUCCESS;
+}
+
+__ramfunc
+enum hp_manager_result
+hp_manager_apply_scheduled_hotpatch(uint32_t identifier) {
+    enum hp_slot_result slot_result;
+    struct hp_slot *slot;
+
+    slot_result = hp_slot_get(identifier, &slot);
+    if (slot_result != HP_SLOT_SUCCESS) {
+        return HP_MANAGER_ERROR_SLOT_NOT_FOUND;
+    }
+    if (slot->status != HP_SLOT_STATUS_SCHEDULED) {
+        return HP_MANAGER_ERROR_SLOT_INVALID_STATE;
+    }
+    if (hp_applicator_is_hotpatch_scheduled() != TRUE) {
+        return HP_MANAGER_ERROR_NO_PENDING_HOTPATCH;
+    }
+
+    hp_applicator_hotpatch_apply();
+    slot->status = HP_SLOT_STATUS_ACTIVE;
 
     return HP_MANAGER_SUCCESS;
 }

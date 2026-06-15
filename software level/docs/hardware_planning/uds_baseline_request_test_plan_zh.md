@@ -347,6 +347,20 @@ python3 "software level/tools/uds_2e_security_access_attack_test.py" --interface
 `0x27` 仍返回 `0x67 0x02`，但后续 `0x2E 0x1234 CAFE` 返回 `0x7F 0x2E 0x31`，
 `0x22 0x1234` 读回空值。这证明拦截点在 ECU-local DID quarantine，而不是 gateway。
 
+kintsugi-runtime profile 验证命令：
+
+```bash
+python3 "software level/tools/uds_2e_security_access_attack_test.py" --interface can0 --expect success --csv "software level/charts/uds_2e_security_access_attack_kintsugi_before_latest.csv"
+nrfjprog -f nrf52 --reset
+python3 "software level/tools/uds_2e_security_access_attack_test.py" --interface can0 --trigger-kintsugi-hotpatch --expect hotpatched-block --csv "software level/charts/uds_2e_security_access_attack_kintsugi_after_latest.csv"
+python3 "software level/tools/uds_security_baseline_test.py" --interface can0 --profile hotpatched --csv "software level/charts/hardware_kintsugi_runtime_after_security_latest.csv"
+```
+
+2026-06-15 实测结果：Kintsugi trigger 前攻击 `5/5 PASS` 且写入成功；发送
+`0x2E F190 01` 后 trigger 返回 `0x6E F190`，随后同一攻击链 `6/6 PASS`，其中
+授权后的 `0x2E` 被 `0x7F 0x2E 0x31` 拦截。Kintsugi 触发后的完整 security baseline
+为 `19/19 PASS`。
+
 参考说明见：
 
 ```text
@@ -453,6 +467,16 @@ BOARD_BASELINE_PROFILE_HOTPATCHED -> UDS_GATEWAY_MODE_MISCONFIGURED + strict ECU
 把高风险 `DID 0x1234` 写权限临时隔离：攻击者即使通过弱 seed/key 算法完成
 `0x27` 解锁，后续 `0x2E 0x1234 ...` 也会得到 `0x7F 0x2E 0x31`。
 
+运行时 Kintsugi 接入 profile 是：
+
+```text
+BOARD_BASELINE_PROFILE_KINTSUGI_RUNTIME -> UDS_GATEWAY_MODE_MISCONFIGURED + strict ECU + Kintsugi bridge
+```
+
+它启动时不预应用 hotpatch，因此弱 `0x27 -> 0x2E` 攻击仍能成功。发送
+`0x2E F190 01` 后，board bridge 通过 Kintsugi manager/applicator patch 一个
+`.ramfunc` gate，gate 生效后再启用 ECU-local DID quarantine。
+
 构建/烧录命令：
 
 ```bash
@@ -464,6 +488,8 @@ make -C "hardware level/board_baseline" gateway-secure
 make -C "hardware level/board_baseline" flash-gateway-secure
 make -C "hardware level/board_baseline" hotpatched
 make -C "hardware level/board_baseline" flash-hotpatched
+make -C "hardware level/board_baseline" kintsugi-runtime
+make -C "hardware level/board_baseline" flash-kintsugi-runtime
 ```
 
 自动化测试按 profile 设置预期：
@@ -477,6 +503,22 @@ python3 "software level/tools/cve_derived_uds_attack_test.py" --interface can0 -
 python3 "software level/tools/cve_derived_uds_attack_test.py" --interface can0 --profile vulnerable
 python3 "software level/tools/cve_derived_uds_attack_test.py" --interface can0 --profile gateway-secure
 python3 "software level/tools/cve_derived_uds_attack_test.py" --interface can0 --profile hotpatched
+```
+
+论文图表用的软件级 mutation campaign：
+
+```bash
+python3 "software level/charts/export_uds_attack_mutation.py"
+```
+
+该命令固定随机种子生成 `1000` 个 gateway-routed `0x10 -> 0x27 -> 0x2E`
+变异尝试，并导出：
+
+```text
+software level/charts/uds_2e_mutation_attack_summary.csv
+software level/charts/uds_2e_mutation_attack_detail.csv
+software level/charts/UDS_2E_MUTATION_ATTACK_SUMMARY.md
+software level/charts/uds_2e_mutation_attack_rates.svg
 ```
 
 如果只需要临时覆盖 gateway mode，也可以直接改：

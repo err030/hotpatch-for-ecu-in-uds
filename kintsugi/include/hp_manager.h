@@ -37,6 +37,7 @@ struct __pack hp_memory_region {
 
 enum hp_manager_result hp_manager_receive_hotpatch(const uint8_t *data, uint32_t size, uint32_t *identifier);
 enum hp_manager_result hp_manager_schedule_hotpatch(uint32_t identifier);
+enum hp_manager_result hp_manager_apply_scheduled_hotpatch(uint32_t identifier);
 enum hp_manager_result hp_manager(const uint8_t *data, uint32_t size, uint32_t *identifier);
 
 void hp_manager_init(void);

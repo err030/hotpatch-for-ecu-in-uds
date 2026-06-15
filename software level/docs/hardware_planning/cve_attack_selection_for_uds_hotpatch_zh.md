@@ -24,11 +24,13 @@ parser/length/security-state regression checks。
 - 没有接入 mbedTLS 证书解析路径
 - UDS over CAN 是本项目自己的 C 实现
 
-因此路线是：
+因此当前用途是：
 
 1. 保留 Kintsugi artifact 中“真实 CVE hotpatch”的证据链。
-2. 在本项目中做 `CVE-derived UDS attack model`，即把真实 CVE 的 bug class 映射到 UDS/CAN parser、DID write、security state 这些实际存在的攻击面。
-3. 论文中明确写成“inspired by / derived from CVE bug class”，不要写成“本 ECU 真实受该 CVE 影响”。
+2. 在本项目中只保留 `CVE-derived legacy regression checks`，即把真实 CVE 的 bug class
+   映射到 UDS/CAN parser、DID length、security state 的负向测试。
+3. 论文中不要把这些 checks 写成主攻击，也不要写成“本 ECU 真实受该 CVE 影响”。
+   主攻击应写 `SecurityAccess-derived 0x2E write attack`。
 
 ## Kintsugi artifact 中明确记录的 10 个 CVE
 
@@ -70,7 +72,7 @@ Kintsugi README 明确说明其 E5 real-world CVE 实验覆盖 10 个 CVE，并�
 Kintsugi artifact contains hotpatch source files for these CVEs.
 ```
 
-## 推荐的CVE-derived 攻击
+## Legacy CVE-derived regression checks
 
 ### 1：`CVE-2018-16603` derived malformed UDS single-frame length
 

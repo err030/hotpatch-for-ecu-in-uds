@@ -15,10 +15,10 @@ from .scenarios import (
     run_failed_key_state_retention_attack,
     run_attack_with_unlock,
     run_attack_without_unlock,
-    run_patch_failure_demo,
-    run_patch_rollback_demo,
+    run_patch_failure_scenario,
+    run_patch_rollback_scenario,
     run_replay_attack,
-    run_runtime_patch_demo,
+    run_runtime_hotpatch_scenario,
     run_session_change_state_retention_attack,
 )
 from .fleet import format_fleet_result, run_default_fleet_comparison
@@ -61,16 +61,16 @@ def main() -> None:
         run_attack_with_unlock(build_reference_servers()[1]),
     )
     print_block(
-        "Patchable ECU: runtime patch demo",
-        run_runtime_patch_demo(),
+        "Patchable ECU: runtime hotpatch scenario",
+        run_runtime_hotpatch_scenario(),
     )
     print_block(
-        "Patchable ECU: failed patch demo",
-        run_patch_failure_demo(),
+        "Patchable ECU: failed patch scenario",
+        run_patch_failure_scenario(),
     )
     print_block(
-        "Patchable ECU: rollback demo",
-        run_patch_rollback_demo(),
+        "Patchable ECU: rollback scenario",
+        run_patch_rollback_scenario(),
     )
     print_block(
         "Sticky unlock after failed key",

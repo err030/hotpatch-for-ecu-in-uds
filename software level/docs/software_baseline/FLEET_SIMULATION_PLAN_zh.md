@@ -254,7 +254,7 @@ fleet 抽象模拟的输入，建议来自两个地方：
 - exposure window 更短
 - unavailable vehicle minutes 可能更低
 
-这会让你的 thesis 从“单个 ECU demo”变成“局部安全修复 + fleet-level operational meaning”。
+这会让你的 thesis 从“单个 ECU prototype”变成“局部安全修复 + fleet-level operational meaning”。
 
 ## 九、建议的仓库实现顺序
 

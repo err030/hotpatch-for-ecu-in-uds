@@ -32,6 +32,8 @@ software level/tools/uds_2e_security_access_attack_test.py
 ```text
 software level/charts/uds_2e_security_access_attack_secure_latest.csv
 software level/charts/uds_2e_security_access_attack_hotpatched_latest.csv
+software level/charts/uds_2e_security_access_attack_kintsugi_before_latest.csv
+software level/charts/uds_2e_security_access_attack_kintsugi_after_latest.csv
 ```
 
 2026-06-14 在 `CANable2.0 / can0 -> nRF52840 + MCP2515` 上实测通过：
@@ -53,6 +55,54 @@ software level/charts/uds_2e_security_access_attack_hotpatched_latest.csv
 
 该 hotpatch 不是 gateway block，而是 ECU-local DID quarantine：在弱 `0x27`
 风险未彻底替换前，临时撤销高风险配置 DID 的写权限。
+
+2026-06-15 在 `kintsugi-runtime` profile 下完成运行时接入验证：
+
+- 触发前，完整 `0x10 -> 0x27 -> 0x2E -> 0x22` 攻击链仍成功，写入 `CAFE`
+- 发送实验控制 DID `0x2E F190 01` 后，board Kintsugi bridge 调用
+  `hp_manager_receive_hotpatch -> hp_manager_schedule_hotpatch ->
+  hp_manager_apply_scheduled_hotpatch`
+- Kintsugi applicator 将 `.ramfunc` gate patch 为 active，随后 ECU-local policy
+  启用 DID quarantine
+- 触发后，同一攻击链中 `0x27` 仍成功，但 `0x2E 0x1234 CAFE` 返回 `0x7F 0x2E 0x31`
+  且 `0x22 0x1234` 读回空值
+
+## Mutation / fuzzing 统计实验
+
+为了避免论文只展示一个手工成功样例，当前增加了确定性 mutation campaign：
+
+```text
+software level/charts/export_uds_attack_mutation.py
+```
+
+该脚本固定随机种子，生成 `1000` 个围绕 `0x10 -> 0x27 -> 0x2E` 的变异样例，
+变异维度包括：
+
+- gateway policy：`misconfigured / open / restricted`
+- diagnostic session 顺序：正常 extended、跳过 session、解锁后回 default session
+- SecurityAccess：正确 seed/key、错误 key、跳过 key
+- DID：目标配置 DID `0x1234`、只读 DID、未知 DID
+- `0x2E` payload 长度：合法长度、零长度、超长
+
+2026-06-15 生成的软件级统计：
+
+| Profile | Cases | Valid attack-shaped cases | Attack successes | Success rate | Blocked/failed rate | Hotpatch-blocked valid cases |
+|---|---:|---:|---:|---:|---:|---:|
+| `before_hotpatch` | 1000 | 787 | 787 | 78.70% | 21.30% | 0 |
+| `after_hotpatch` | 1000 | 787 | 0 | 0.00% | 100.00% | 787 |
+
+论文图表 artifact：
+
+```text
+software level/charts/uds_2e_mutation_attack_summary.csv
+software level/charts/uds_2e_mutation_attack_detail.csv
+software level/charts/UDS_2E_MUTATION_ATTACK_SUMMARY.md
+software level/charts/uds_2e_mutation_attack_rates.svg
+```
+
+解释边界：`before_hotpatch` 不是 100%，因为分母包含变异后的合理诊断尝试，而不是只
+计算单条手工挑选的成功链。`after_hotpatch` 在本 corpus 中观测到 100% 拦截，但论文
+中应写成“tested mutation corpus 中全部拦截”，不能写成证明所有可能攻击都被拦截。
 
 ## 可核验来源
 
@@ -100,3 +150,9 @@ baseline，用于证明 hotpatch 需要在 ECU-local SecurityAccess / DID policy
 当前硬件 hotpatch payload 采用最后一种最小闭环：保留 `0x27` 握手以证明请求到达
 ECU，但对 `UDS_VALID_WRITE_DID = 0x1234` 启用 quarantine，使攻击链在授权后
 `0x2E` 阶段被 ECU 返回 `requestOutOfRange (0x31)`。
+
+Kintsugi 接入边界：当前没有打开 FreeRTOS context-switch hook
+`configUSE_HP_FRAMEWORK=1`，因为此前该 hook 在 nRF/FreeRTOS 组合下曾触发 HardFault。
+本轮接入使用 Kintsugi 原生 slot/code/applicator 数据结构和 manager API，但由 board
+bridge 显式调用 apply safe point，避免阻塞式 `hp_manager()` 等待 context-switch
+applicator。

@@ -68,13 +68,15 @@ build/nrf52840_xxaa/main.c.o: src/main.c \
  ../../external/sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/include/nrfx_spim.h \
  ../../external/sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/hal/nrf_spim.h \
  ../app/include/uds_gateway.h ../app/include/uds_link.h \
- ../app/include/board_log.h ../app/include/board_runtime.h \
- ../app/include/board_adapter.h ../app/include/uds_ecu.h \
+ include/board_kintsugi_bridge.h ../app/include/uds_ecu.h \
  ../app/include/uds_dispatcher.h ../app/include/uds_protocol.h \
- ../app/include/uds_gateway.h ../app/include/uds_tasks.h \
- ../app/include/board_task.h ../app/include/board_runtime.h \
- ../app/include/mcp2515_can_port.h ../app/include/mcp2515_driver.h \
- ../app/include/mcp2515_driver.h ../app/include/mcp2515_nrfx_spim.h \
+ ../app/include/uds_link.h ../app/include/board_log.h \
+ ../app/include/board_runtime.h ../app/include/board_adapter.h \
+ ../app/include/uds_ecu.h ../app/include/uds_gateway.h \
+ ../app/include/uds_tasks.h ../app/include/board_task.h \
+ ../app/include/board_runtime.h ../app/include/mcp2515_can_port.h \
+ ../app/include/mcp2515_driver.h ../app/include/mcp2515_driver.h \
+ ../app/include/mcp2515_nrfx_spim.h \
  ../../external/sdk/nRF5_SDK_17.1.0_ddde560/integration/nrfx/legacy/nrf_drv_clock.h \
  ../../external/sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/include/nrfx_clock.h \
  ../../external/sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/hal/nrf_clock.h \
@@ -100,8 +102,7 @@ build/nrf52840_xxaa/main.c.o: src/main.c \
  ../../external/sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/balloc/nrf_balloc.h \
  ../../external/sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/log/nrf_log_default_backends.h \
  ../../external/rtos/FreeRTOS-Kernel/include/task.h \
- ../../external/rtos/FreeRTOS-Kernel/include/list.h \
- ../app/include/uds_ecu.h ../app/include/uds_link.h
+ ../../external/rtos/FreeRTOS-Kernel/include/list.h
 /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h:
 /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h:
 ../../external/rtos/FreeRTOS-Kernel/include/FreeRTOS.h:
@@ -180,12 +181,15 @@ include/config/sdk_config.h:
 ../../external/sdk/nRF5_SDK_17.1.0_ddde560/modules/nrfx/hal/nrf_spim.h:
 ../app/include/uds_gateway.h:
 ../app/include/uds_link.h:
+include/board_kintsugi_bridge.h:
+../app/include/uds_ecu.h:
+../app/include/uds_dispatcher.h:
+../app/include/uds_protocol.h:
+../app/include/uds_link.h:
 ../app/include/board_log.h:
 ../app/include/board_runtime.h:
 ../app/include/board_adapter.h:
 ../app/include/uds_ecu.h:
-../app/include/uds_dispatcher.h:
-../app/include/uds_protocol.h:
 ../app/include/uds_gateway.h:
 ../app/include/uds_tasks.h:
 ../app/include/board_task.h:
@@ -222,5 +226,3 @@ include/config/sdk_config.h:
 ../../external/sdk/nRF5_SDK_17.1.0_ddde560/components/libraries/log/nrf_log_default_backends.h:
 ../../external/rtos/FreeRTOS-Kernel/include/task.h:
 ../../external/rtos/FreeRTOS-Kernel/include/list.h:
-../app/include/uds_ecu.h:
-../app/include/uds_link.h:

@@ -21,8 +21,10 @@ else ifeq ($(BOARD_BASELINE_PROFILE),gateway-secure)
 BOARD_BASELINE_PROFILE_DEFINE := BOARD_BASELINE_PROFILE_GATEWAY_SECURE
 else ifeq ($(BOARD_BASELINE_PROFILE),hotpatched)
 BOARD_BASELINE_PROFILE_DEFINE := BOARD_BASELINE_PROFILE_HOTPATCHED
+else ifeq ($(BOARD_BASELINE_PROFILE),kintsugi-runtime)
+BOARD_BASELINE_PROFILE_DEFINE := BOARD_BASELINE_PROFILE_KINTSUGI_RUNTIME
 else
-$(error Unsupported BOARD_BASELINE_PROFILE '$(BOARD_BASELINE_PROFILE)'. Use secure, vulnerable, gateway-secure, or hotpatched)
+$(error Unsupported BOARD_BASELINE_PROFILE '$(BOARD_BASELINE_PROFILE)'. Use secure, vulnerable, gateway-secure, hotpatched, or kintsugi-runtime)
 endif
 
 $(OUTPUT_DIRECTORY)/nrf52840_xxaa.out: \
@@ -62,6 +64,7 @@ SRC_FILES += \
   $(SDK_ROOT)/external/segger_rtt/SEGGER_RTT.c \
   $(SDK_ROOT)/external/segger_rtt/SEGGER_RTT_printf.c \
   $(PROJ_DIR)/src/main.c \
+  $(PROJ_DIR)/src/board_kintsugi_bridge.c \
   $(SDK_ROOT)/modules/nrfx/mdk/system_nrf52.c \
   $(SDK_ROOT)/integration/nrfx/legacy/nrf_drv_clock.c \
   $(SDK_ROOT)/components/drivers_nrf/nrf_soc_nosd/nrf_nvic.c \
@@ -234,12 +237,14 @@ help:
 	@echo		vulnerable - clean build with permissive gateway and vulnerable ECU
 	@echo		gateway-secure - clean build with restricted gateway profile
 	@echo		hotpatched - clean build with permissive gateway and ECU-local hotpatch
+	@echo		kintsugi-runtime - clean build with Kintsugi-triggered ECU-local hotpatch
 	@echo		sdk_config - starting external tool for editing sdk_config.h
 	@echo		flash      - flashing binary
 	@echo		flash-secure - clean build and flash secure profile
 	@echo		flash-vulnerable - clean build and flash vulnerable profile
 	@echo		flash-gateway-secure - clean build and flash gateway-secure profile
 	@echo		flash-hotpatched - clean build and flash hotpatched profile
+	@echo		flash-kintsugi-runtime - clean build and flash Kintsugi-triggered profile
 
 TEMPLATE_PATH := $(SDK_ROOT)/components/toolchain/gcc
 
@@ -248,7 +253,7 @@ include $(TEMPLATE_PATH)/Makefile.common
 
 $(foreach target, $(TARGETS), $(call define_target, $(target)))
 
-.PHONY: secure vulnerable gateway-secure hotpatched flash flash-secure flash-vulnerable flash-gateway-secure flash-hotpatched erase
+.PHONY: secure vulnerable gateway-secure hotpatched kintsugi-runtime flash flash-secure flash-vulnerable flash-gateway-secure flash-hotpatched flash-kintsugi-runtime erase
 
 secure:
 	$(MAKE) clean
@@ -265,6 +270,10 @@ gateway-secure:
 hotpatched:
 	$(MAKE) clean
 	$(MAKE) nrf52840_xxaa BOARD_BASELINE_PROFILE=hotpatched
+
+kintsugi-runtime:
+	$(MAKE) clean
+	$(MAKE) nrf52840_xxaa BOARD_BASELINE_PROFILE=kintsugi-runtime
 
 # Flash the program
 flash: default
@@ -287,6 +296,10 @@ flash-gateway-secure:
 flash-hotpatched:
 	$(MAKE) hotpatched
 	$(MAKE) flash BOARD_BASELINE_PROFILE=hotpatched
+
+flash-kintsugi-runtime:
+	$(MAKE) kintsugi-runtime
+	$(MAKE) flash BOARD_BASELINE_PROFILE=kintsugi-runtime
 
 erase:
 	nrfjprog -f nrf52 --eraseall

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="430" viewBox="0 0 1280 430">
+  <rect width="1280" height="430" fill="white"/>
+  <text x="70" y="62" font-size="34" font-family="Arial" font-weight="700" fill="#202020">UDS 0x27 to 0x2E Mutation Campaign</text>
+  <text x="70" y="101" font-size="21" font-family="Arial" fill="#444444">Attack success rate over a deterministic 1000-case mutated corpus</text>
+  <text x="70" y="169" font-size="24" font-family="Arial" fill="#202020">Before hotpatch</text>
+  <rect x="310" y="145" width="520" height="44" fill="#efefef" />
+  <rect x="310" y="145" width="409" height="44" fill="#d95f02" />
+  <text x="850" y="175" font-size="24" font-family="Arial" fill="#202020">78.7% attack success (787/1000)</text>
+  <text x="70" y="289" font-size="24" font-family="Arial" fill="#202020">After hotpatch</text>
+  <rect x="310" y="265" width="520" height="44" fill="#efefef" />
+  <rect x="310" y="265" width="1" height="44" fill="#1b9e77" />
+  <text x="850" y="295" font-size="24" font-family="Arial" fill="#202020">0.0% attack success (0/1000)</text>
+  <text x="70" y="390" font-size="18" font-family="Arial" fill="#555555">Post-hotpatch block rate is observed for this corpus, not a proof over all possible inputs.</text>
+</svg>

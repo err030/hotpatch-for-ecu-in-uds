@@ -56,6 +56,12 @@ typedef void (*uds_board_trace_sink_t)(
     void *context
 );
 
+typedef bool (*uds_board_control_hook_t)(
+    const uds_can_frame_t *ingress_frame,
+    uds_can_frame_t *egress_frame_out,
+    void *context
+);
+
 typedef bool (*uds_board_can_receive_fn)(
     uds_can_frame_t *frame_out,
     void *context
@@ -79,6 +85,8 @@ typedef struct {
     uds_board_trace_t last_trace;
     uds_board_trace_sink_t trace_sink;
     void *trace_sink_context;
+    uds_board_control_hook_t control_hook;
+    void *control_hook_context;
 } uds_board_adapter_t;
 
 void uds_board_adapter_init_direct_ecu(
@@ -96,6 +104,12 @@ void uds_board_adapter_set_trace_sink(
     uds_board_adapter_t *adapter,
     uds_board_trace_sink_t trace_sink,
     void *trace_sink_context
+);
+
+void uds_board_adapter_set_control_hook(
+    uds_board_adapter_t *adapter,
+    uds_board_control_hook_t control_hook,
+    void *control_hook_context
 );
 
 bool uds_board_adapter_process_ingress_frame(

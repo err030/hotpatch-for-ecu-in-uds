@@ -13,12 +13,16 @@ def load_font(size: int, bold: bool = False):
     if bold:
         candidates.extend(
             [
+                "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
                 "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
                 "/Library/Fonts/Arial Bold.ttf",
             ]
         )
     candidates.extend(
         [
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
             "/System/Library/Fonts/PingFang.ttc",
             "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
             "/System/Library/Fonts/Supplemental/Arial.ttf",
@@ -156,7 +160,7 @@ def build_analysis_flow():
 
     boxes = {
         "main": ((900, 130, 1500, 270), "main.py", "命令行入口\n把各个模块的结果打印出来", "#d8ecff"),
-        "scenarios": ((120, 420, 600, 600), "scenarios.py", "把核心运行链路拼成攻击与补丁场景\n未授权写 / replay / patch demo", "#dff6dd"),
+        "scenarios": ((120, 420, 600, 600), "scenarios.py", "把核心运行链路拼成攻击与补丁场景\n未授权写 / replay / runtime hotpatch", "#dff6dd"),
         "differential": ((690, 420, 1170, 600), "differential.py", "比较两种 backend 是否语义一致\n当前比较 direct 与 gateway-routed", "#d7f4f7"),
         "timing": ((1260, 420, 1740, 600), "timing.py", "估计 handler latency\njitter / patch delay", "#e4dcff"),
         "fleet": ((1830, 420, 2310, 600), "fleet.py", "把单车安全结论提升到车队层面\nOTA-only vs hotpatch-first", "#e4dcff"),

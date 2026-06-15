@@ -35,6 +35,7 @@ CAN_SFF_MASK = 0x000007FF
 DEFAULT_REQUEST_ID = 0x7E0
 DEFAULT_RESPONSE_ID = 0x7E8
 UDS_SEED_MASK = 0xA55A
+KINTSUGI_CONTROL_DID = 0xF190
 
 
 @dataclass(frozen=True)
@@ -204,6 +205,11 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--trigger-kintsugi-hotpatch",
+        action="store_true",
+        help="Send 0x2E F190 01 before the attack chain to trigger the board Kintsugi bridge.",
+    )
+    parser.add_argument(
         "--csv",
         default="software level/charts/uds_2e_security_access_attack_latest.csv",
         help="CSV output path",
@@ -221,6 +227,23 @@ def main() -> int:
         except OSError as exc:
             print(f"cannot bind {args.interface}: {exc}", file=sys.stderr)
             return 2
+
+        if args.trigger_kintsugi_hotpatch:
+            steps.append(
+                run_step(
+                    can_socket,
+                    args,
+                    "trigger_kintsugi_hotpatch",
+                    bytes([
+                        0x2E,
+                        (KINTSUGI_CONTROL_DID >> 8) & 0xFF,
+                        KINTSUGI_CONTROL_DID & 0xFF,
+                        0x01,
+                    ]),
+                    "6EF190",
+                    expect_payload(bytes([0x6E, 0xF1, 0x90])),
+                )
+            )
 
         steps.append(
             run_step(

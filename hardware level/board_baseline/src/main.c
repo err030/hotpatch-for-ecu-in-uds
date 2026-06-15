@@ -4,6 +4,7 @@
 #include "FreeRTOS.h"
 #include "app_error.h"
 #include "board_baseline_config.h"
+#include "board_kintsugi_bridge.h"
 #include "board_log.h"
 #include "board_runtime.h"
 #include "board_task.h"
@@ -87,6 +88,9 @@ static uds_ecu_task_t g_adjacent_ecu_task;
 static uds_board_adapter_t g_board_adapter;
 static uds_board_runtime_t g_board_runtime;
 static uds_board_task_context_t g_board_task_context;
+#if (BOARD_UDS_KINTSUGI_BRIDGE_ENABLED == 1)
+static board_kintsugi_bridge_t g_kintsugi_bridge;
+#endif
 static mcp2515_driver_t g_mcp2515_driver;
 static mcp2515_nrfx_spim_context_t g_mcp2515_spim_context;
 static mcp2515_can_port_context_t g_mcp2515_can_port_context;
@@ -209,6 +213,14 @@ static void board_diag_runtime_init(void)
         &g_gateway_task,
         &g_adjacent_ecu_task
     );
+#if (BOARD_UDS_KINTSUGI_BRIDGE_ENABLED == 1)
+    board_kintsugi_bridge_init(&g_kintsugi_bridge, &g_adjacent_ecu);
+    uds_board_adapter_set_control_hook(
+        &g_board_adapter,
+        board_kintsugi_bridge_control_hook,
+        &g_kintsugi_bridge
+    );
+#endif
     mcp2515_nrfx_spim_bus_init(
         &spi_bus,
         &g_mcp2515_spim_context,
@@ -392,7 +404,7 @@ int main(void)
     board_diag_runtime_init();
 
     board_log_printf(
-        "[BOOT] gateway route ext=0x%03X/0x%03X -> int=0x%03X/0x%03X profile=%s gateway_mode=%d ecu=%s hotpatch=%u can=%lu@%luHz task_prio=%u\n",
+        "[BOOT] gateway route ext=0x%03X/0x%03X -> int=0x%03X/0x%03X profile=%s gateway_mode=%d ecu=%s hotpatch=%u kintsugi=%u can=%lu@%luHz task_prio=%u\n",
         BOARD_UDS_EXTERNAL_REQUEST_CAN_ID,
         BOARD_UDS_EXTERNAL_RESPONSE_CAN_ID,
         BOARD_UDS_INTERNAL_REQUEST_CAN_ID,
@@ -401,6 +413,7 @@ int main(void)
         (int)BOARD_UDS_GATEWAY_MODE,
         BOARD_UDS_ECU_PROFILE_NAME,
         (unsigned)BOARD_UDS_APPLY_SECURITY_ACCESS_HOTPATCH,
+        (unsigned)BOARD_UDS_KINTSUGI_BRIDGE_ENABLED,
         (unsigned long)BOARD_CAN_BITRATE_BPS,
         (unsigned long)BOARD_MCP2515_OSCILLATOR_HZ,
         (unsigned)UDS_TASK_PRIORITY

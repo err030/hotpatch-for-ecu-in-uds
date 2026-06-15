@@ -131,6 +131,20 @@ void uds_board_adapter_set_trace_sink(
     adapter->trace_sink_context = trace_sink_context;
 }
 
+void uds_board_adapter_set_control_hook(
+    uds_board_adapter_t *adapter,
+    uds_board_control_hook_t control_hook,
+    void *control_hook_context
+)
+{
+    if (adapter == NULL) {
+        return;
+    }
+
+    adapter->control_hook = control_hook;
+    adapter->control_hook_context = control_hook_context;
+}
+
 static bool uds_board_adapter_process_direct(
     uds_board_adapter_t *adapter,
     const uds_can_frame_t *ingress_frame,
@@ -268,6 +282,19 @@ bool uds_board_adapter_process_ingress_frame(
     }
 
     uds_board_trace_reset(&adapter->last_trace, adapter->path_mode, ingress_frame);
+
+    if (adapter->control_hook != NULL &&
+        adapter->control_hook(
+            ingress_frame,
+            egress_frame_out,
+            adapter->control_hook_context)) {
+        adapter->last_trace.egress_frame = *egress_frame_out;
+        adapter->last_trace.egress_frame_valid = true;
+        uds_board_trace_decode_response(&adapter->last_trace, egress_frame_out);
+        adapter->last_trace.outcome = UDS_BOARD_OUTCOME_RESPONSE_READY;
+        uds_board_trace_finish(adapter);
+        return true;
+    }
 
     if (adapter->path_mode == UDS_BOARD_PATH_DIRECT_ECU) {
         return uds_board_adapter_process_direct(adapter, ingress_frame, egress_frame_out);

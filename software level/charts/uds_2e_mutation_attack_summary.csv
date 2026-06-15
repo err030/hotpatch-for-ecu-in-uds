@@ -1,0 +1,3 @@
+profile,total_cases,valid_attack_shapes,attack_successes,attack_success_rate,blocked_or_failed_rate,hotpatch_blocked_valid_shapes
+before_hotpatch,1000,787,787,0.7870,0.2130,0
+after_hotpatch,1000,787,0,0.0000,1.0000,787

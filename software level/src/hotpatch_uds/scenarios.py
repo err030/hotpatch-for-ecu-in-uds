@@ -466,8 +466,8 @@ def run_replay_attack(write_payload: bytes = b"\x06") -> list[str]:
     return lines
 
 
-def run_runtime_patch_demo(write_payload: bytes = b"\x03") -> list[str]:
-    """演示运行时打补丁前后行为变化和 patch 生命周期。"""
+def run_runtime_hotpatch_scenario(write_payload: bytes = b"\x03") -> list[str]:
+    """运行时 hotpatch 前后行为变化和 patch 生命周期场景。"""
     patchable = MockEcuServer(PatchableECU())
     client = build_gateway_routed_client_and_server(patchable)
     lines: list[str] = []
@@ -492,8 +492,8 @@ def run_runtime_patch_demo(write_payload: bytes = b"\x03") -> list[str]:
     return lines
 
 
-def run_patch_failure_demo(write_payload: bytes = b"\x07") -> list[str]:
-    """演示 patch 失败后 ECU 仍保持漏洞行为。"""
+def run_patch_failure_scenario(write_payload: bytes = b"\x07") -> list[str]:
+    """patch 失败后 ECU 仍保持漏洞行为的场景。"""
     patchable = MockEcuServer(PatchableECU())
     client = build_gateway_routed_client_and_server(patchable)
     lines: list[str] = []
@@ -510,8 +510,8 @@ def run_patch_failure_demo(write_payload: bytes = b"\x07") -> list[str]:
     return lines
 
 
-def run_patch_rollback_demo(write_payload: bytes = b"\x08") -> list[str]:
-    """演示补丁激活后又回滚，漏洞行为重新出现。"""
+def run_patch_rollback_scenario(write_payload: bytes = b"\x08") -> list[str]:
+    """补丁激活后又回滚、漏洞行为重新出现的场景。"""
     patchable = MockEcuServer(PatchableECU())
     client = build_gateway_routed_client_and_server(patchable)
     lines: list[str] = []
