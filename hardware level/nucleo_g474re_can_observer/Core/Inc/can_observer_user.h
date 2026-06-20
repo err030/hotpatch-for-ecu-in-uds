@@ -6,6 +6,8 @@ extern "C" {
 #endif
 
 void can_observer_init(void);
+void can_observer_init_polling(void);
+void can_observer_poll_led(void);
 void can_observer_poll_uart(void);
 
 #ifdef __cplusplus
@@ -13,4 +15,3 @@ void can_observer_poll_uart(void);
 #endif
 
 #endif
-

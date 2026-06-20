@@ -8,7 +8,7 @@
 #include <string.h>
 
 extern FDCAN_HandleTypeDef hfdcan1;
-#if !defined(NUCLEO_OBSERVER_CAN_LED_TEST)
+#if !defined(NUCLEO_OBSERVER_CAN_LED_TEST) && !defined(NUCLEO_OBSERVER_CAN_POLL_LED_TEST)
 extern UART_HandleTypeDef huart2;
 #endif
 
@@ -17,11 +17,13 @@ extern UART_HandleTypeDef huart2;
 
 #if defined(NUCLEO_OBSERVER_CAN_LED_TEST)
 static volatile uint32_t observer_led_pulse_until_ms;
+#elif defined(NUCLEO_OBSERVER_CAN_POLL_LED_TEST)
+static uint32_t observer_poll_led_pulse_until_ms;
 #endif
 
 static void observer_uart_write(const char *line)
 {
-#if defined(NUCLEO_OBSERVER_CAN_LED_TEST)
+#if defined(NUCLEO_OBSERVER_CAN_LED_TEST) || defined(NUCLEO_OBSERVER_CAN_POLL_LED_TEST)
     (void)line;
 #else
     (void)HAL_UART_Transmit(
@@ -33,7 +35,7 @@ static void observer_uart_write(const char *line)
 #endif
 }
 
-#if !defined(NUCLEO_OBSERVER_CAN_LED_TEST)
+#if !defined(NUCLEO_OBSERVER_CAN_LED_TEST) && !defined(NUCLEO_OBSERVER_CAN_POLL_LED_TEST)
 #define OBSERVER_RING_SIZE 64U
 
 typedef struct {
@@ -158,6 +160,33 @@ static void observer_format_and_send(const observer_frame_t *frame)
     (void)snprintf(cursor, (size_t)remaining, "\r\n");
     observer_uart_write(line);
 }
+
+static void observer_drain_rx_fifo(FDCAN_HandleTypeDef *hfdcan)
+{
+    FDCAN_RxHeaderTypeDef header;
+    uint8_t data[8];
+    uint8_t dlc;
+
+    while (HAL_FDCAN_GetRxFifoFillLevel(hfdcan, FDCAN_RX_FIFO0) > 0U) {
+        memset(data, 0, sizeof(data));
+        if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &header, data) != HAL_OK) {
+            return;
+        }
+
+        if (header.IdType != FDCAN_STANDARD_ID || header.RxFrameType != FDCAN_DATA_FRAME) {
+            continue;
+        }
+
+        if (header.Identifier != OBSERVER_CAN_ID_REQUEST &&
+            header.Identifier != OBSERVER_CAN_ID_RESPONSE) {
+            continue;
+        }
+
+        HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+        dlc = fdcan_dlc_to_bytes(header.DataLength);
+        observer_enqueue(header.Identifier, dlc, data);
+    }
+}
 #endif
 
 static void observer_configure_filters(void)
@@ -166,7 +195,7 @@ static void observer_configure_filters(void)
 
     filter.IdType = FDCAN_STANDARD_ID;
     filter.FilterIndex = 0U;
-#if defined(NUCLEO_OBSERVER_CAN_LED_TEST)
+#if defined(NUCLEO_OBSERVER_CAN_LED_TEST) || defined(NUCLEO_OBSERVER_CAN_POLL_LED_TEST)
     filter.FilterType = FDCAN_FILTER_MASK;
     filter.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
     filter.FilterID1 = 0x000U;
@@ -197,9 +226,9 @@ static void observer_configure_filters(void)
 
 void can_observer_init(void)
 {
-#if !defined(NUCLEO_OBSERVER_CAN_LED_TEST)
+#if !defined(NUCLEO_OBSERVER_CAN_LED_TEST) && !defined(NUCLEO_OBSERVER_CAN_POLL_LED_TEST)
     observer_dwt_init();
-    observer_uart_write("BOOT,NUCLEO_G474RE_CAN_OBSERVER,250000,LISTEN_ONLY,IDS=7E0/7E8\r\n");
+    observer_uart_write("BOOT,NUCLEO_G474RE_CAN_OBSERVER,250000,LISTEN_ONLY,RX=IRQ,IDS=7E0/7E8\r\n");
     if (hfdcan1.Init.Mode != FDCAN_MODE_BUS_MONITORING) {
         observer_uart_write("WARN,FDCAN_NOT_BUS_MONITORING_CHECK_CUBEMX\r\n");
     }
@@ -222,9 +251,56 @@ void can_observer_init(void)
     }
 }
 
+void can_observer_init_polling(void)
+{
+#if !defined(NUCLEO_OBSERVER_CAN_LED_TEST) && !defined(NUCLEO_OBSERVER_CAN_POLL_LED_TEST)
+    observer_dwt_init();
+    observer_uart_write("BOOT,NUCLEO_G474RE_CAN_OBSERVER,250000,LISTEN_ONLY,RX=POLLING,IDS=7E0/7E8\r\n");
+    if (hfdcan1.Init.Mode != FDCAN_MODE_BUS_MONITORING) {
+        observer_uart_write("WARN,FDCAN_NOT_BUS_MONITORING_CHECK_CUBEMX\r\n");
+    }
+#endif
+
+    observer_configure_filters();
+
+    if (HAL_FDCAN_Start(&hfdcan1) != HAL_OK) {
+        Error_Handler();
+    }
+}
+
+void can_observer_poll_led(void)
+{
+#if defined(NUCLEO_OBSERVER_CAN_POLL_LED_TEST)
+    FDCAN_RxHeaderTypeDef header;
+    uint8_t data[8];
+
+    if (observer_poll_led_pulse_until_ms != 0U &&
+        (int32_t)(HAL_GetTick() - observer_poll_led_pulse_until_ms) >= 0) {
+        HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+        observer_poll_led_pulse_until_ms = 0U;
+    }
+
+    while (HAL_FDCAN_GetRxFifoFillLevel(&hfdcan1, FDCAN_RX_FIFO0) > 0U) {
+        memset(data, 0, sizeof(data));
+        if (HAL_FDCAN_GetRxMessage(&hfdcan1, FDCAN_RX_FIFO0, &header, data) != HAL_OK) {
+            Error_Handler();
+        }
+
+        if (header.IdType == FDCAN_STANDARD_ID && header.RxFrameType == FDCAN_DATA_FRAME) {
+            HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
+            observer_poll_led_pulse_until_ms = HAL_GetTick() + 300U;
+        }
+    }
+#else
+    return;
+#endif
+}
+
 void can_observer_poll_uart(void)
 {
-#if defined(NUCLEO_OBSERVER_CAN_LED_TEST)
+#if defined(NUCLEO_OBSERVER_CAN_POLL_LED_TEST)
+    return;
+#elif defined(NUCLEO_OBSERVER_CAN_LED_TEST)
     uint32_t pulse_until = observer_led_pulse_until_ms;
 
     if (pulse_until != 0U && (int32_t)(HAL_GetTick() - pulse_until) >= 0) {
@@ -236,6 +312,10 @@ void can_observer_poll_uart(void)
     observer_frame_t frame;
     uint32_t dropped;
     char line[64];
+
+#if defined(NUCLEO_OBSERVER_CAN_POLL_UART)
+    observer_drain_rx_fifo(&hfdcan1);
+#endif
 
     while (observer_dequeue(&frame)) {
         observer_format_and_send(&frame);
@@ -254,16 +334,18 @@ void can_observer_poll_uart(void)
 
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t rx_fifo0_its)
 {
+#if defined(NUCLEO_OBSERVER_CAN_LED_TEST) || defined(NUCLEO_OBSERVER_CAN_POLL_LED_TEST)
     FDCAN_RxHeaderTypeDef header;
     uint8_t data[8];
-#if !defined(NUCLEO_OBSERVER_CAN_LED_TEST)
-    uint8_t dlc;
 #endif
 
     if (hfdcan != &hfdcan1 || (rx_fifo0_its & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) == 0U) {
         return;
     }
 
+#if !defined(NUCLEO_OBSERVER_CAN_LED_TEST) && !defined(NUCLEO_OBSERVER_CAN_POLL_LED_TEST)
+    observer_drain_rx_fifo(hfdcan);
+#else
     while (HAL_FDCAN_GetRxFifoFillLevel(hfdcan, FDCAN_RX_FIFO0) > 0U) {
         memset(data, 0, sizeof(data));
         if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &header, data) != HAL_OK) {
@@ -273,20 +355,10 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t rx_fifo0_it
         if (header.IdType != FDCAN_STANDARD_ID || header.RxFrameType != FDCAN_DATA_FRAME) {
             continue;
         }
-#if !defined(NUCLEO_OBSERVER_CAN_LED_TEST)
-        if (header.Identifier != OBSERVER_CAN_ID_REQUEST &&
-            header.Identifier != OBSERVER_CAN_ID_RESPONSE) {
-            continue;
-        }
-#endif
-
-#if !defined(NUCLEO_OBSERVER_CAN_LED_TEST)
-        HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-        dlc = fdcan_dlc_to_bytes(header.DataLength);
-        observer_enqueue(header.Identifier, dlc, data);
-#else
+#if defined(NUCLEO_OBSERVER_CAN_LED_TEST)
         HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
         observer_led_pulse_until_ms = HAL_GetTick() + 150U;
 #endif
     }
+#endif
 }

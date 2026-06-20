@@ -66,6 +66,22 @@ bitrate = 16 MHz / (4 * (1 + 13 + 2)) = 250000 bit/s
 sample point = (1 + 13) / (1 + 13 + 2) = 87.5%
 ```
 
+Optional 500 kbps timing with the same 16 MHz FDCAN clock:
+
+```text
+Nominal Prescaler: 2
+Nominal Sync Jump Width: 2
+Nominal Time Seg1: 13
+Nominal Time Seg2: 2
+```
+
+Explanation:
+
+```text
+bitrate = 16 MHz / (2 * (1 + 13 + 2)) = 500000 bit/s
+sample point = 87.5%
+```
+
 Data bit timing is unused in classic CAN. Set it to a valid conservative value if CubeMX requires it.
 
 NVIC:

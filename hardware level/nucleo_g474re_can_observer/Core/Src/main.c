@@ -8,7 +8,7 @@ UART_HandleTypeDef huart2;
 static void SystemClock_Config(void);
 static void MX_FDCAN1_Init(void);
 static void MX_GPIO_Init(void);
-#if !defined(NUCLEO_OBSERVER_CAN_LED_TEST)
+#if !defined(NUCLEO_OBSERVER_CAN_LED_TEST) && !defined(NUCLEO_OBSERVER_CAN_POLL_LED_TEST)
 static void MX_USART2_UART_Init(void);
 #endif
 
@@ -25,15 +25,23 @@ int main(void)
     }
 #endif
 
-#if !defined(NUCLEO_OBSERVER_CAN_LED_TEST)
+#if !defined(NUCLEO_OBSERVER_CAN_LED_TEST) && !defined(NUCLEO_OBSERVER_CAN_POLL_LED_TEST)
     MX_USART2_UART_Init();
 #endif
     MX_FDCAN1_Init();
 
+#if defined(NUCLEO_OBSERVER_CAN_POLL_LED_TEST) || defined(NUCLEO_OBSERVER_CAN_POLL_UART)
+    can_observer_init_polling();
+#else
     can_observer_init();
+#endif
 
     while (1) {
+#if defined(NUCLEO_OBSERVER_CAN_POLL_LED_TEST)
+        can_observer_poll_led();
+#else
         can_observer_poll_uart();
+#endif
     }
 }
 
@@ -78,11 +86,21 @@ static void MX_FDCAN1_Init(void)
     hfdcan1.Init.AutoRetransmission = DISABLE;
     hfdcan1.Init.TransmitPause = DISABLE;
     hfdcan1.Init.ProtocolException = ENABLE;
-    hfdcan1.Init.NominalPrescaler = 4U;
+    hfdcan1.Init.NominalPrescaler =
+#if defined(NUCLEO_OBSERVER_FDCAN_BITRATE_500K)
+        2U;
+#else
+        4U;
+#endif
     hfdcan1.Init.NominalSyncJumpWidth = 2U;
     hfdcan1.Init.NominalTimeSeg1 = 13U;
     hfdcan1.Init.NominalTimeSeg2 = 2U;
-    hfdcan1.Init.DataPrescaler = 4U;
+    hfdcan1.Init.DataPrescaler =
+#if defined(NUCLEO_OBSERVER_FDCAN_BITRATE_500K)
+        2U;
+#else
+        4U;
+#endif
     hfdcan1.Init.DataSyncJumpWidth = 2U;
     hfdcan1.Init.DataTimeSeg1 = 13U;
     hfdcan1.Init.DataTimeSeg2 = 2U;
@@ -110,7 +128,7 @@ static void MX_GPIO_Init(void)
     HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
 }
 
-#if !defined(NUCLEO_OBSERVER_CAN_LED_TEST)
+#if !defined(NUCLEO_OBSERVER_CAN_LED_TEST) && !defined(NUCLEO_OBSERVER_CAN_POLL_LED_TEST)
 static void MX_USART2_UART_Init(void)
 {
     huart2.Instance = USART2;

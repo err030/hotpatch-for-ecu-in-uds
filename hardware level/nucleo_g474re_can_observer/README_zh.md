@@ -49,6 +49,8 @@ Waveshare CANL          -> CAN bus L
 
 如果改用 `PA11/PA12`，连接为 `PA12/FDCAN1_TX -> CTX/TXD`、`PA11/FDCAN1_RX -> CRX/RXD`，并用 `make FDCAN_PINS=PA11_PA12` 重新编译烧录。
 
+默认 bitrate 是 `250000`，和当前 nRF/MCP2515 baseline 一致。如果整条 CAN bus 都切到 `500000`，Nucleo 也可以用 `make FDCAN_BITRATE=500000 ...` 重新编译。不要让 Nucleo 单独使用 500 kbit/s 去监听 250 kbit/s 总线。
+
 如果你的 Waveshare 模块有 `RS` 引脚，把它接 GND 或按模块说明配置为高速正常模式，避免悬空。
 
 ### UART 日志
@@ -71,8 +73,9 @@ UART 参数：
 
 ## 总线注意事项
 
-- Nucleo observer 必须使用 `FDCAN_MODE_BUS_MONITORING`，也就是 listen-only / silent。
-- Observer 不应 ACK 或发送任何 CAN frame。
+- 正式 passive observer 优先使用 `FDCAN_MODE=BUS_MONITORING`，也就是 listen-only / silent。
+- 硬件 bring-up 可以临时使用 `FDCAN_MODE=NORMAL`，用于确认 PB8/PB9、transceiver、bitrate 和 filter 都能收到帧。
+- Observer 不应主动发送任何 CAN frame；`NORMAL` bring-up 模式可能参与 ACK，因此不要把它作为最终 passive 论文实验配置。
 - 不要额外打开 Waveshare 模块上的 120 ohm 终端电阻，除非它确实是总线末端之一。
 - 正式论文实验不要使用“Waveshare 断电但 CANH/CANL 仍挂总线”的配置。
 
@@ -115,12 +118,37 @@ while (1)
 
 ## 采集日志
 
+当前已验证的接收路径是 FIFO polling。接 Raspberry Pi Debug Probe 或使用板载 ST-LINK VCP 采日志前，建议先烧录 polling UART 版本：
+
+```bash
+cd "hardware level/nucleo_g474re_can_observer"
+make clean
+make CAN_POLL_UART=1 FDCAN_MODE=NORMAL FDCAN_BITRATE=250000 flash
+```
+
+如果 `NORMAL` polling UART 已经能稳定输出 `MON` 日志，再切换为正式 passive 配置复测：
+
+```bash
+make clean
+make CAN_POLL_UART=1 FDCAN_MODE=BUS_MONITORING FDCAN_BITRATE=250000 flash
+```
+
 Nucleo 自带 ST-LINK VCP 或 Raspberry Pi Debug Probe 都会显示成 `/dev/serial/by-id/...`：
 
 ```bash
 ls -l /dev/serial/by-id
 stty -F /dev/serial/by-id/<nucleo-or-debug-probe-uart> 115200 raw -echo
 cat /dev/serial/by-id/<nucleo-or-debug-probe-uart> | tee "software level/charts/nucleo_can_monitor_latest.log"
+```
+
+也可以用仓库脚本在采集时自动触发若干个 can0 请求：
+
+```bash
+python3 "software level/tools/capture_nucleo_can_monitor.py" \
+  --serial /dev/serial/by-id/usb-STMicroelectronics_STLINK-V3_0034002C3235511437333439-if02 \
+  --duration 4 \
+  --send-requests 5 \
+  --log "software level/charts/nucleo_can_monitor_latest.log"
 ```
 
 转 CSV：
