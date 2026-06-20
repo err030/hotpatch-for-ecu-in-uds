@@ -3,3 +3,5 @@ __pycache__/
 .pytools/
 .venv/
 get-pip.py
+external/sdk/*.zip
+hardware level/**/build/
