@@ -10,6 +10,10 @@
 #define __pack  __attribute__ ((__packed__))
 #define __ni    __attribute__ ((noinline))
 
+#if defined(HP_BOARD_BASELINE_FLASH_RAMFUNC) && (HP_BOARD_BASELINE_FLASH_RAMFUNC == 1)
+#define __ramfunc
+#endif
+
 #ifndef __ramfunc
 #define __ramfunc __attribute__((section(".ramfunc")))
 #endif

@@ -40,7 +40,9 @@
 #endif
 
 
+#ifndef __ramfunc
 #define __ramfunc __attribute__((section(".ramfunc")))
+#endif
 
 
 extern uint32_t UART_PRINT_FLAG;

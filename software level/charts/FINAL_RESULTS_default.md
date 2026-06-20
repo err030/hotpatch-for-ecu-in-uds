@@ -76,6 +76,11 @@
   - after hotpatch: `1000/1000` benign requests passed
   - contrast: attack mutation success changed from `787/1000` to `0/1000`
   - artifacts: `software level/charts/uds_control_group_summary.csv`, `software level/charts/uds_benign_diagnostic_control_detail.csv`, `software level/thesis_figures/pdf/fig11_control_group_success_rates.pdf`
+- CAN0 request-response timeline figure: generated
+  - source: real `can0` request-response measurements after restarting CANable/slcand
+  - before hotpatch: request latencies ranged from `2.221` ms to `3.372` ms; `0x2E 1234 CAFE` returned `6E1234`
+  - after Kintsugi hotpatch: trigger and `0x27` remained positive; `0x2E 1234 CAFE` returned `7F2E31` with `3.241` ms latency
+  - artifacts: `software level/charts/can0_request_timeline_latest.csv`, `software level/charts/can0_request_timeline_kintsugi_after_latest.csv`, `software level/charts/uds_request_response_timeline_summary.csv`, `software level/thesis_figures/pdf/fig12_can0_request_timeline.pdf`
 - OTA-only cumulative exposure window: `6605` min
 - Hotpatch-first cumulative exposure window: `2787` min
 - Relative reduction: `0.578`
@@ -101,5 +106,6 @@
 - The hotpatched and Kintsugi-runtime profiles block that same sequence at ECU-local DID policy: `0x27` still succeeds, but authorized `0x2E` to high-risk DID `0x1234` is quarantined with `7F2E31`.
 - The mutation campaign turns the single-chain result into a thesis chart: pre-hotpatch attack success is high but not perfect because the denominator includes plausible mutated attempts; post-hotpatch success is `0/1000` for the tested corpus.
 - The benign-control campaign strengthens the evaluation: ordinary UDS diagnostic requests remain `1000/1000` successful before and after hotpatching, while attack mutations drop from `787/1000` to `0/1000`.
+- The real request-response timeline adds sequence- and latency-level evidence: the hotpatch does not block the session or SecurityAccess handshake; it changes the outcome specifically at the high-risk `0x2E` write step.
 - The current data supports the thesis claim that a Kintsugi-style hotpatch can reduce the OTA pre-update exposure window at modest software-level cost.
 - Remaining risk should be stated explicitly: the `100.00%` post-hotpatch block/fail rate is an observed result over this deterministic corpus and the current hardware checks, not a formal proof over every UDS input sequence.

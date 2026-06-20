@@ -16,6 +16,7 @@ import matplotlib
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt  # noqa: E402
+from matplotlib.lines import Line2D  # noqa: E402
 from matplotlib.patches import FancyArrowPatch, FancyBboxPatch, Rectangle  # noqa: E402
 
 
@@ -396,6 +397,221 @@ def fig_control_group_success_rates() -> Path:
     return save(fig, "fig11_control_group_success_rates.pdf")
 
 
+def classify_response_payload(payload: str) -> tuple[str, str]:
+    if payload == "<none>" or payload == "":
+        return "timeout", "timeout"
+    if payload.startswith("7F") and len(payload) >= 6:
+        return "negative", f"NRC {payload[4:6]}"
+    if payload.startswith("7F"):
+        return "negative", "negative"
+    return "positive", "positive"
+
+
+def short_step_label(step: str) -> str:
+    labels = {
+        "trigger_kintsugi_hotpatch": "trigger\n0x2E F190",
+        "enter_extended_session": "session\n0x10",
+        "reset_default_session": "reset\n0x10",
+        "request_security_seed": "seed\n0x27",
+        "send_key_from_weak_transform": "key\n0x27",
+        "write_did_after_security_access": "write\n0x2E",
+        "read_back_written_did": "read\n0x22",
+        "read_back_quarantined_did": "read\n0x22",
+        "read_back_did_0x1234": "read\n0x22",
+    }
+    return labels.get(step, step.replace("_", "\n"))
+
+
+def timeline_source_rows() -> list[dict[str, str]]:
+    real_sources = [
+        (
+            "before_hotpatch_attack_succeeds",
+            "Before hotpatch: attack succeeds",
+            CHARTS / "can0_request_timeline_latest.csv",
+        ),
+        (
+            "after_kintsugi_hotpatch_blocks",
+            "After Kintsugi hotpatch: attack blocked",
+            CHARTS / "can0_request_timeline_kintsugi_after_latest.csv",
+        ),
+    ]
+    if all(path.exists() for _, _, path in real_sources):
+        rows: list[dict[str, str]] = []
+        for scenario_id, scenario_label, path in real_sources:
+            for row in read_rows(path):
+                if row["response_payload"] == "<none>":
+                    continue
+                rows.append(
+                    {
+                        "scenario_id": scenario_id,
+                        "scenario_label": scenario_label,
+                        "step_index": row["step_index"],
+                        "step": row["step"],
+                        "request_payload": row["request_payload"],
+                        "response_payload": row["response_payload"],
+                        "response_class": row["response_class"],
+                        "outcome": row["nrc"] if row["nrc"] else row["response_class"],
+                        "elapsed_start_ms": row["elapsed_start_ms"],
+                        "elapsed_end_ms": row["elapsed_end_ms"],
+                        "latency_ms": row["latency_ms"],
+                        "source": path.name,
+                    }
+                )
+        if rows:
+            return rows
+
+    artifact_sources = [
+        (
+            "before_hotpatch_attack_succeeds",
+            "Before hotpatch: attack succeeds",
+            CHARTS / "uds_2e_security_access_attack_kintsugi_before_latest.csv",
+        ),
+        (
+            "after_kintsugi_hotpatch_blocks",
+            "After Kintsugi hotpatch: attack blocked",
+            CHARTS / "uds_2e_security_access_attack_kintsugi_after_latest.csv",
+        ),
+    ]
+    rows: list[dict[str, str]] = []
+    for scenario_id, scenario_label, path in artifact_sources:
+        for index, row in enumerate(read_rows(path), start=1):
+            response_class, outcome = classify_response_payload(row["response_payload"])
+            rows.append(
+                {
+                    "scenario_id": scenario_id,
+                    "scenario_label": scenario_label,
+                    "step_index": str(index),
+                    "step": row["step"],
+                    "request_payload": row["request_payload"],
+                    "response_payload": row["response_payload"],
+                    "response_class": response_class,
+                    "outcome": outcome,
+                    "elapsed_start_ms": str(index - 1),
+                    "elapsed_end_ms": str(index),
+                    "latency_ms": "",
+                    "source": path.name,
+                }
+            )
+    return rows
+
+
+def write_timeline_summary_csv(rows: list[dict[str, str]]) -> None:
+    path = CHARTS / "uds_request_response_timeline_summary.csv"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        fieldnames = [
+            "scenario_id",
+            "scenario_label",
+            "step_index",
+            "step",
+            "request_payload",
+            "response_payload",
+            "response_class",
+            "outcome",
+            "elapsed_start_ms",
+            "elapsed_end_ms",
+            "latency_ms",
+            "source",
+        ]
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def fig_request_response_timeline() -> Path:
+    rows = timeline_source_rows()
+    write_timeline_summary_csv(rows)
+    scenario_order = [
+        "before_hotpatch_attack_succeeds",
+        "after_kintsugi_hotpatch_blocks",
+    ]
+    scenario_titles = {
+        row["scenario_id"]: row["scenario_label"]
+        for row in rows
+    }
+    colors = {
+        "positive": GREEN,
+        "negative": ORANGE,
+        "timeout": RED,
+    }
+    markers = {
+        "positive": "o",
+        "negative": "s",
+        "timeout": "x",
+    }
+
+    real_latency = all(row["latency_ms"] for row in rows)
+    fig, axes = plt.subplots(2, 1, figsize=(9.2, 5.4), sharex=False)
+    title = "Real CAN0 UDS Request-Response Timeline" if real_latency else "CAN0 UDS Request Timeline from Hardware CSV Artifacts"
+    fig.suptitle(title, fontweight="bold", y=0.99)
+
+    for ax, scenario_id in zip(axes, scenario_order):
+        scenario_rows = [row for row in rows if row["scenario_id"] == scenario_id]
+        starts = [float(row["elapsed_start_ms"]) for row in scenario_rows]
+        ends = [float(row["elapsed_end_ms"]) for row in scenario_rows]
+        xmax = max(ends)
+        ax.hlines(0, min(starts), xmax, color="#808080", linewidth=1.0)
+        for row in scenario_rows:
+            start = float(row["elapsed_start_ms"])
+            end = float(row["elapsed_end_ms"])
+            x = (start + end) / 2.0
+            response_class = row["response_class"]
+            ax.hlines(0, start, end, color=colors[response_class], linewidth=5, alpha=0.85)
+            ax.scatter(
+                [x],
+                [0],
+                s=75,
+                marker=markers[response_class],
+                color=colors[response_class],
+                edgecolor="#303030",
+                linewidth=0.6,
+                zorder=3,
+            )
+            ax.text(
+                x,
+                0.20,
+                short_step_label(row["step"]),
+                ha="center",
+                va="bottom",
+                fontsize=8,
+            )
+            ax.text(
+                x,
+                -0.22,
+                f"req {row['request_payload']}\nresp {row['response_payload']}"
+                + (f"\n{float(row['latency_ms']):.2f} ms" if row["latency_ms"] else ""),
+                ha="center",
+                va="top",
+                fontsize=7.2,
+                color=TEXT,
+            )
+        ax.set_ylim(-0.45, 0.45)
+        ax.set_xlim(-8.0, xmax + max(5.0, xmax * 0.04))
+        ax.set_yticks([])
+        ax.set_xlabel("Elapsed time since first request send (ms)" if real_latency else "Request order")
+        ax.set_title(scenario_titles[scenario_id], loc="left", fontsize=10, fontweight="bold")
+        ax.grid(axis="x")
+        ax.grid(axis="y", visible=False)
+
+    legend_handles = [
+        Line2D([0], [0], marker="o", color="w", label="positive response", markerfacecolor=GREEN, markeredgecolor="#303030", markersize=8),
+        Line2D([0], [0], marker="s", color="w", label="negative response", markerfacecolor=ORANGE, markeredgecolor="#303030", markersize=8),
+        Line2D([0], [0], marker="x", color=RED, label="timeout", markersize=8),
+    ]
+    fig.legend(handles=legend_handles, loc="upper center", bbox_to_anchor=(0.5, 0.94), frameon=True, ncol=3)
+    fig.text(
+        0.01,
+        0.015,
+        "Timeline measured over can0 after CANable restart; labels show request, response, and per-request latency."
+        if real_latency
+        else "Timeline uses request order from successful can0 hardware CSV artifacts; it is not a latency measurement.",
+        fontsize=8,
+        color=GRAY,
+    )
+    fig.tight_layout(rect=[0, 0.04, 1, 0.90])
+    return save(fig, "fig12_can0_request_timeline.pdf")
+
+
 def mutation_category(row: dict[str, str]) -> str:
     if row["valid_attack_shape"] == "true":
         return "valid attack shape"
@@ -583,6 +799,14 @@ def write_manifest(paths: list[Path]) -> Path:
         "| `fig09_hotpatch_resource_footprint.pdf` | Evaluation | hotpatch 内存资源占用 |",
         "| `fig10_fleet_exposure_reduction.pdf` | Discussion / Evaluation | fleet-level exposure model |",
         "| `fig11_control_group_success_rates.pdf` | Evaluation | 普通诊断请求对照组与攻击 mutation 对比 |",
+        "| `fig12_can0_request_timeline.pdf` | Evaluation | can0 硬件 artifact 的请求-响应时间轴 |",
+        "",
+        "Note: `fig12_can0_request_timeline.pdf` is generated from the successful",
+        "`uds_2e_security_access_attack_kintsugi_before_latest.csv` and",
+        "`uds_2e_security_access_attack_kintsugi_after_latest.csv` hardware artifacts.",
+        "It is a request-order timeline, not a real latency measurement. The optional",
+        "`measure_can0_request_timeline.py` tool can collect real can0 timing when the",
+        "board is responding on `0x7E8`.",
         "",
         "LaTeX 示例：",
         "",
@@ -612,6 +836,7 @@ def main() -> None:
         fig_resource_footprint(),
         fig_fleet_exposure(),
         fig_control_group_success_rates(),
+        fig_request_response_timeline(),
     ]
     manifest = write_manifest(paths)
     for path in paths:

@@ -15,6 +15,14 @@
 | `fig09_hotpatch_resource_footprint.pdf` | Evaluation | hotpatch 内存资源占用 |
 | `fig10_fleet_exposure_reduction.pdf` | Discussion / Evaluation | fleet-level exposure model |
 | `fig11_control_group_success_rates.pdf` | Evaluation | 普通诊断请求对照组与攻击 mutation 对比 |
+| `fig12_can0_request_timeline.pdf` | Evaluation | can0 硬件 artifact 的请求-响应时间轴 |
+
+Note: `fig12_can0_request_timeline.pdf` is generated from the successful
+`uds_2e_security_access_attack_kintsugi_before_latest.csv` and
+`uds_2e_security_access_attack_kintsugi_after_latest.csv` hardware artifacts.
+It is a request-order timeline, not a real latency measurement. The optional
+`measure_can0_request_timeline.py` tool can collect real can0 timing when the
+board is responding on `0x7E8`.
 
 LaTeX 示例：
 
@@ -35,3 +43,4 @@ Generated files:
 - `fig09_hotpatch_resource_footprint.pdf`
 - `fig10_fleet_exposure_reduction.pdf`
 - `fig11_control_group_success_rates.pdf`
+- `fig12_can0_request_timeline.pdf`
