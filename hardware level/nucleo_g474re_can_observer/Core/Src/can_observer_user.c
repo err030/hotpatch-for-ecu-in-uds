@@ -8,11 +8,33 @@
 #include <string.h>
 
 extern FDCAN_HandleTypeDef hfdcan1;
+#if !defined(NUCLEO_OBSERVER_CAN_LED_TEST)
 extern UART_HandleTypeDef huart2;
+#endif
 
-#define OBSERVER_RING_SIZE 64U
 #define OBSERVER_CAN_ID_REQUEST  0x7E0U
 #define OBSERVER_CAN_ID_RESPONSE 0x7E8U
+
+#if defined(NUCLEO_OBSERVER_CAN_LED_TEST)
+static volatile uint32_t observer_led_pulse_until_ms;
+#endif
+
+static void observer_uart_write(const char *line)
+{
+#if defined(NUCLEO_OBSERVER_CAN_LED_TEST)
+    (void)line;
+#else
+    (void)HAL_UART_Transmit(
+        &huart2,
+        (uint8_t *)line,
+        (uint16_t)strlen(line),
+        HAL_MAX_DELAY
+    );
+#endif
+}
+
+#if !defined(NUCLEO_OBSERVER_CAN_LED_TEST)
+#define OBSERVER_RING_SIZE 64U
 
 typedef struct {
     uint32_t timestamp_us;
@@ -58,16 +80,6 @@ static void observer_dwt_init(void)
     CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
     DWT->CYCCNT = 0U;
     DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
-}
-
-static void observer_uart_write(const char *line)
-{
-    (void)HAL_UART_Transmit(
-        &huart2,
-        (uint8_t *)line,
-        (uint16_t)strlen(line),
-        HAL_MAX_DELAY
-    );
 }
 
 static void observer_enqueue(uint32_t can_id, uint8_t dlc, const uint8_t *data)
@@ -146,6 +158,7 @@ static void observer_format_and_send(const observer_frame_t *frame)
     (void)snprintf(cursor, (size_t)remaining, "\r\n");
     observer_uart_write(line);
 }
+#endif
 
 static void observer_configure_filters(void)
 {
@@ -153,10 +166,17 @@ static void observer_configure_filters(void)
 
     filter.IdType = FDCAN_STANDARD_ID;
     filter.FilterIndex = 0U;
+#if defined(NUCLEO_OBSERVER_CAN_LED_TEST)
+    filter.FilterType = FDCAN_FILTER_MASK;
+    filter.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
+    filter.FilterID1 = 0x000U;
+    filter.FilterID2 = 0x000U;
+#else
     filter.FilterType = FDCAN_FILTER_DUAL;
     filter.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
     filter.FilterID1 = OBSERVER_CAN_ID_REQUEST;
     filter.FilterID2 = OBSERVER_CAN_ID_RESPONSE;
+#endif
 
     if (HAL_FDCAN_ConfigFilter(&hfdcan1, &filter) != HAL_OK) {
         observer_uart_write("ERR,FDCAN_CONFIG_FILTER\r\n");
@@ -177,11 +197,13 @@ static void observer_configure_filters(void)
 
 void can_observer_init(void)
 {
+#if !defined(NUCLEO_OBSERVER_CAN_LED_TEST)
     observer_dwt_init();
     observer_uart_write("BOOT,NUCLEO_G474RE_CAN_OBSERVER,250000,LISTEN_ONLY,IDS=7E0/7E8\r\n");
     if (hfdcan1.Init.Mode != FDCAN_MODE_BUS_MONITORING) {
         observer_uart_write("WARN,FDCAN_NOT_BUS_MONITORING_CHECK_CUBEMX\r\n");
     }
+#endif
 
     observer_configure_filters();
 
@@ -202,6 +224,15 @@ void can_observer_init(void)
 
 void can_observer_poll_uart(void)
 {
+#if defined(NUCLEO_OBSERVER_CAN_LED_TEST)
+    uint32_t pulse_until = observer_led_pulse_until_ms;
+
+    if (pulse_until != 0U && (int32_t)(HAL_GetTick() - pulse_until) >= 0) {
+        HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+        observer_led_pulse_until_ms = 0U;
+    }
+    return;
+#else
     observer_frame_t frame;
     uint32_t dropped;
     char line[64];
@@ -218,13 +249,16 @@ void can_observer_poll_uart(void)
         (void)snprintf(line, sizeof(line), "WARN,DROPPED,%lu\r\n", (unsigned long)dropped);
         observer_uart_write(line);
     }
+#endif
 }
 
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t rx_fifo0_its)
 {
     FDCAN_RxHeaderTypeDef header;
     uint8_t data[8];
+#if !defined(NUCLEO_OBSERVER_CAN_LED_TEST)
     uint8_t dlc;
+#endif
 
     if (hfdcan != &hfdcan1 || (rx_fifo0_its & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) == 0U) {
         return;
@@ -239,12 +273,20 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t rx_fifo0_it
         if (header.IdType != FDCAN_STANDARD_ID || header.RxFrameType != FDCAN_DATA_FRAME) {
             continue;
         }
+#if !defined(NUCLEO_OBSERVER_CAN_LED_TEST)
         if (header.Identifier != OBSERVER_CAN_ID_REQUEST &&
             header.Identifier != OBSERVER_CAN_ID_RESPONSE) {
             continue;
         }
+#endif
 
+#if !defined(NUCLEO_OBSERVER_CAN_LED_TEST)
+        HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
         dlc = fdcan_dlc_to_bytes(header.DataLength);
         observer_enqueue(header.Identifier, dlc, data);
+#else
+        HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
+        observer_led_pulse_until_ms = HAL_GetTick() + 150U;
+#endif
     }
 }

@@ -34,9 +34,11 @@ FDCAN kernel clock: 16 MHz / PCLK1
 Pins:
 
 ```text
-PA11 -> FDCAN1_RX
-PA12 -> FDCAN1_TX
+PB8  -> FDCAN1_RX
+PB9  -> FDCAN1_TX
 ```
+
+备用引脚组也可用 `PA11 -> FDCAN1_RX`、`PA12 -> FDCAN1_TX`。当前 Makefile 默认使用 `PB8/PB9`，如需 PA11/PA12，执行 `make FDCAN_PINS=PA11_PA12`。
 
 Mode:
 
@@ -122,4 +124,3 @@ Inside the main loop:
 ```c
 can_observer_poll_uart();
 ```
-

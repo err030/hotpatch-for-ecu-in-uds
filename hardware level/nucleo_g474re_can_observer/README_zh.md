@@ -36,16 +36,18 @@ MON,0000051130,7E8,8,037F2E3100000000
 
 ### FDCAN 到 SN65HVD230
 
-推荐用 CubeMX 配置 `FDCAN1`：
+当前默认固件使用 CubeMX 中的 `FDCAN1 PB8/PB9`：
 
 ```text
-Nucleo PA12 / FDCAN1_TX -> Waveshare CTX/TXD
-Nucleo PA11 / FDCAN1_RX -> Waveshare CRX/RXD
+Nucleo PB9 / FDCAN1_TX -> Waveshare CTX/TXD
+Nucleo PB8 / FDCAN1_RX -> Waveshare CRX/RXD
 Nucleo 3V3              -> Waveshare VCC
 Nucleo GND              -> Waveshare GND
 Waveshare CANH          -> CAN bus H
 Waveshare CANL          -> CAN bus L
 ```
+
+如果改用 `PA11/PA12`，连接为 `PA12/FDCAN1_TX -> CTX/TXD`、`PA11/FDCAN1_RX -> CRX/RXD`，并用 `make FDCAN_PINS=PA11_PA12` 重新编译烧录。
 
 如果你的 Waveshare 模块有 `RS` 引脚，把它接 GND 或按模块说明配置为高速正常模式，避免悬空。
 
@@ -128,4 +130,3 @@ python3 "software level/tools/parse_nucleo_can_monitor_log.py" \
   --log "software level/charts/nucleo_can_monitor_latest.log" \
   --csv "software level/charts/nucleo_can_monitor_latest.csv"
 ```
-
