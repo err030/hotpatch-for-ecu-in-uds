@@ -55,7 +55,7 @@ static void board_kintsugi_bridge_poll(board_kintsugi_bridge_t *bridge)
     bridge->hotpatch_applied = true;
 }
 
-static bool board_kintsugi_apply_security_hotpatch(board_kintsugi_bridge_t *bridge)
+static bool board_kintsugi_receive_security_hotpatch(board_kintsugi_bridge_t *bridge)
 {
     board_kintsugi_patch_blob_t blob;
     uint32_t identifier = 0U;
@@ -63,7 +63,7 @@ static bool board_kintsugi_apply_security_hotpatch(board_kintsugi_bridge_t *brid
     if (bridge == NULL || bridge->ecu == NULL || !bridge->initialized) {
         return false;
     }
-    if (bridge->hotpatch_applied) {
+    if (bridge->hotpatch_loaded) {
         return true;
     }
 
@@ -79,18 +79,64 @@ static bool board_kintsugi_apply_security_hotpatch(board_kintsugi_bridge_t *brid
 
     bridge->hotpatch_identifier = identifier;
     bridge->hotpatch_loaded = true;
-    bridge->schedule_result = (uint32_t)hp_manager_schedule_hotpatch(identifier);
+    bridge->hotpatch_scheduled = false;
+    bridge->hotpatch_applied = false;
+    return true;
+}
+
+static bool board_kintsugi_schedule_security_hotpatch(board_kintsugi_bridge_t *bridge)
+{
+    if (bridge == NULL || bridge->ecu == NULL || !bridge->initialized) {
+        return false;
+    }
+    if (bridge->hotpatch_applied || bridge->hotpatch_scheduled) {
+        return true;
+    }
+    if (!bridge->hotpatch_loaded) {
+        return false;
+    }
+
+    bridge->schedule_result =
+        (uint32_t)hp_manager_schedule_hotpatch(bridge->hotpatch_identifier);
     if (bridge->schedule_result != HP_MANAGER_SUCCESS) {
         return false;
     }
 
-    bridge->apply_result = (uint32_t)hp_manager_apply_scheduled_hotpatch(identifier);
+    bridge->hotpatch_scheduled = true;
+    return true;
+}
+
+static bool board_kintsugi_apply_scheduled_security_hotpatch(board_kintsugi_bridge_t *bridge)
+{
+    if (bridge == NULL || bridge->ecu == NULL || !bridge->initialized) {
+        return false;
+    }
+    if (bridge->hotpatch_applied) {
+        return true;
+    }
+    if (!bridge->hotpatch_scheduled) {
+        return false;
+    }
+
+    bridge->apply_result =
+        (uint32_t)hp_manager_apply_scheduled_hotpatch(bridge->hotpatch_identifier);
     if (bridge->apply_result != HP_MANAGER_SUCCESS) {
         return false;
     }
 
     board_kintsugi_bridge_poll(bridge);
     return bridge->hotpatch_applied;
+}
+
+static bool board_kintsugi_apply_security_hotpatch(board_kintsugi_bridge_t *bridge)
+{
+    if (!board_kintsugi_receive_security_hotpatch(bridge)) {
+        return false;
+    }
+    if (!board_kintsugi_schedule_security_hotpatch(bridge)) {
+        return false;
+    }
+    return board_kintsugi_apply_scheduled_security_hotpatch(bridge);
 }
 
 static bool board_kintsugi_decode_control_request(
@@ -190,6 +236,18 @@ bool board_kintsugi_bridge_try_handle_control_frame(
 
     if (command == BOARD_KINTSUGI_CONTROL_APPLY_SECURITY_HOTPATCH) {
         nrc = board_kintsugi_apply_security_hotpatch(bridge) ?
+            0U :
+            NRC_CONDITIONS_NOT_CORRECT;
+    } else if (command == BOARD_KINTSUGI_CONTROL_RECEIVE_SECURITY_HOTPATCH) {
+        nrc = board_kintsugi_receive_security_hotpatch(bridge) ?
+            0U :
+            NRC_CONDITIONS_NOT_CORRECT;
+    } else if (command == BOARD_KINTSUGI_CONTROL_SCHEDULE_SECURITY_HOTPATCH) {
+        nrc = board_kintsugi_schedule_security_hotpatch(bridge) ?
+            0U :
+            NRC_CONDITIONS_NOT_CORRECT;
+    } else if (command == BOARD_KINTSUGI_CONTROL_APPLY_SCHEDULED_HOTPATCH) {
+        nrc = board_kintsugi_apply_scheduled_security_hotpatch(bridge) ?
             0U :
             NRC_CONDITIONS_NOT_CORRECT;
     }

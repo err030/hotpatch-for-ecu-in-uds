@@ -1,0 +1,5 @@
+phase,attack_expected,attack_observed,attack_check_passed,benign_read_passed
+before_hotpatch,success,success,true,true
+during_received_pending,success,success,true,true
+during_scheduled_pending,success,success,true,true
+after_apply,blocked,blocked,true,true

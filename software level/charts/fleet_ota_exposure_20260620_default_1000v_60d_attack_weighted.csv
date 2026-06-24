@@ -1,0 +1,3 @@
+strategy,expected_attack_attempts,expected_successful_attack_opportunities
+ota_only,476.7715625,369.021189375
+hotpatch_first,148.2571527777778,114.75103625000003

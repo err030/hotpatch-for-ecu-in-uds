@@ -13,11 +13,15 @@ extern "C" {
 
 #define BOARD_KINTSUGI_CONTROL_DID 0xF190U
 #define BOARD_KINTSUGI_CONTROL_APPLY_SECURITY_HOTPATCH 0x01U
+#define BOARD_KINTSUGI_CONTROL_RECEIVE_SECURITY_HOTPATCH 0x02U
+#define BOARD_KINTSUGI_CONTROL_SCHEDULE_SECURITY_HOTPATCH 0x03U
+#define BOARD_KINTSUGI_CONTROL_APPLY_SCHEDULED_HOTPATCH 0x04U
 
 typedef struct {
     uds_ecu_t *ecu;
     bool initialized;
     bool hotpatch_loaded;
+    bool hotpatch_scheduled;
     bool hotpatch_applied;
     uint32_t hotpatch_identifier;
     uint32_t receive_result;
