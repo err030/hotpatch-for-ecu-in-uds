@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="591.84pt" height="333.072pt" viewBox="0 0 591.84 333.072" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <metadata>
+  <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:date>2026-06-24T23:25:41.688530</dc:date>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.5.1, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 333.072 
+L 591.84 333.072 
+L 591.84 0 
+L 0 0 
+z
+" style="fill: #ffffff"/>
+  </g>
+  <g id="axes_1">
+   <g id="patch_2">
+    <path d="M 36.51696 143.705808 
+L 186.81984 143.705808 
+Q 193.78368 143.705808 193.78368 139.847184 
+L 193.78368 72.642816 
+Q 193.78368 68.784192 186.81984 68.784192 
+L 36.51696 68.784192 
+Q 29.55312 68.784192 29.55312 72.642816 
+L 29.55312 139.847184 
+Q 29.55312 143.705808 36.51696 143.705808 
+z
+" clip-path="url(#p83aa12d386)" style="fill: #ffffff; stroke: #2f8f5b; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_3">
+    <path d="M 216.41616 143.705808 
+L 366.71904 143.705808 
+Q 373.68288 143.705808 373.68288 139.847184 
+L 373.68288 72.642816 
+Q 373.68288 68.784192 366.71904 68.784192 
+L 216.41616 68.784192 
+Q 209.45232 68.784192 209.45232 72.642816 
+L 209.45232 139.847184 
+Q 209.45232 143.705808 216.41616 143.705808 
+z
+" clip-path="url(#p83aa12d386)" style="fill: #ffffff; stroke: #2f8f5b; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_4">
+    <path d="M 396.31536 143.705808 
+L 546.61824 143.705808 
+Q 553.58208 143.705808 553.58208 139.847184 
+L 553.58208 72.642816 
+Q 553.58208 68.784192 546.61824 68.784192 
+L 396.31536 68.784192 
+Q 389.35152 68.784192 389.35152 72.642816 
+L 389.35152 139.847184 
+Q 389.35152 143.705808 396.31536 143.705808 
+z
+" clip-path="url(#p83aa12d386)" style="fill: #ffffff; stroke: #3e78b2; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_5">
+    <path d="M 123.56496 235.348128 
+L 273.86784 235.348128 
+Q 280.83168 235.348128 280.83168 231.489504 
+L 280.83168 164.285136 
+Q 280.83168 160.426512 273.86784 160.426512 
+L 123.56496 160.426512 
+Q 116.60112 160.426512 116.60112 164.285136 
+L 116.60112 231.489504 
+Q 116.60112 235.348128 123.56496 235.348128 
+z
+" clip-path="url(#p83aa12d386)" style="fill: #ffffff; stroke: #3e78b2; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_6">
+    <path d="M 315.07056 235.348128 
+L 465.37344 235.348128 
+Q 472.33728 235.348128 472.33728 231.489504 
+L 472.33728 164.285136 
+Q 472.33728 160.426512 465.37344 160.426512 
+L 315.07056 160.426512 
+Q 308.10672 160.426512 308.10672 164.285136 
+L 308.10672 231.489504 
+Q 308.10672 235.348128 315.07056 235.348128 
+z
+" clip-path="url(#p83aa12d386)" style="fill: #ffffff; stroke: #2f8f5b; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_7">
+    <path d="M 188.655371 106.084224 
+Q 201.61741 106.084224 213.181907 106.084224 
+" clip-path="url(#p83aa12d386)" style="fill: none; stroke: #2f3437; stroke-width: 1.25; stroke-linecap: round"/>
+    <path d="M 208.381907 103.684224 
+L 213.181907 106.084224 
+L 208.381907 108.484224 
+L 208.381907 103.684224 
+z
+" clip-path="url(#p83aa12d386)" style="fill: #2f3437; stroke: #2f3437; stroke-width: 1.25; stroke-linecap: round"/>
+   </g>
+   <g id="patch_8">
+    <path d="M 368.554571 106.084224 
+Q 381.51661 106.084224 393.081107 106.084224 
+" clip-path="url(#p83aa12d386)" style="fill: none; stroke: #2f3437; stroke-width: 1.25; stroke-linecap: round"/>
+    <path d="M 388.281107 103.684224 
+L 393.081107 106.084224 
+L 388.281107 108.484224 
+L 388.281107 103.684224 
+z
+" clip-path="url(#p83aa12d386)" style="fill: #2f3437; stroke: #2f3437; stroke-width: 1.25; stroke-linecap: round"/>
+   </g>
+   <g id="patch_9">
+    <path d="M 288.385527 140.010315 
+Q 245.140324 152.066627 203.241325 163.747632 
+" clip-path="url(#p83aa12d386)" style="fill: none; stroke: #2f3437; stroke-width: 1.25; stroke-linecap: round"/>
+    <path d="M 208.509519 164.770437 
+L 203.241325 163.747632 
+L 207.220486 160.14676 
+L 208.509519 164.770437 
+z
+" clip-path="url(#p83aa12d386)" style="fill: #2f3437; stroke: #2f3437; stroke-width: 1.25; stroke-linecap: round"/>
+   </g>
+   <g id="patch_10">
+    <path d="M 452.762956 140.420891 
+Q 426.491191 152.066519 401.49707 163.145798 
+" clip-path="url(#p83aa12d386)" style="fill: none; stroke: #2f3437; stroke-width: 1.25; stroke-linecap: round"/>
+    <path d="M 406.857858 163.394717 
+L 401.49707 163.145798 
+L 404.912678 159.00652 
+L 406.857858 163.394717 
+z
+" clip-path="url(#p83aa12d386)" style="fill: #2f3437; stroke: #2f3437; stroke-width: 1.25; stroke-linecap: round"/>
+   </g>
+   <g id="patch_11">
+    <path d="M 75.3984 299.98008 
+L 516.4416 299.98008 
+L 516.4416 256.57056 
+L 75.3984 256.57056 
+z
+" clip-path="url(#p83aa12d386)" style="fill: #ddeaf6; opacity: 0.9; stroke: #e6e8ea; stroke-width: 0.8; stroke-linejoin: miter"/>
+   </g>
+   <g id="text_1">
+    <text style="fill: #22262a; font: 700 9px 'sans-serif'; text-anchor: start" x="14.4648" y="15.142601" transform="rotate(-0, 14.4648, 15.142601)">a</text>
+   </g>
+   <g id="text_2">
+    <text style="font: 700 11.5px 'sans-serif'; text-anchor: start" x="40.5792" y="25.752523" transform="rotate(-0, 40.5792, 25.752523)">Evidence chain for fleet-level UDS runtime hotpatching</text>
+   </g>
+   <g id="text_3">
+    <text style="fill: #636b73; font: 7.8px 'sans-serif'; text-anchor: start" x="40.5792" y="35.803181" transform="rotate(-0, 40.5792, 35.803181)">Each card is backed by a CSV artifact and a detailed figure; this panel is an overview for the thesis narrative.</text>
+   </g>
+   <g id="text_4">
+    <text style="fill: #2f8f5b; font: 700 8.2px 'sans-serif'; text-anchor: start" x="49.284" y="88.410688" transform="rotate(-0, 49.284, 88.410688)">1</text>
+   </g>
+   <g id="text_5">
+    <text style="fill: #22262a; font: 700 7.5px 'sans-serif'; text-anchor: start" x="69.01488" y="88.188234" transform="rotate(-0, 69.01488, 88.188234)">Software fuzzing</text>
+   </g>
+   <g id="text_6">
+    <text style="fill: #636b73; font: 6.6px 'sans-serif'; text-anchor: start" x="49.284" y="105.654548" transform="rotate(-0, 49.284, 105.654548)">Attack success drops</text>
+   </g>
+   <g id="text_7">
+    <text style="fill: #2f8f5b; font: 700 7.2px 'sans-serif'; text-anchor: start" x="49.284" y="126.077886" transform="rotate(-0, 49.284, 126.077886)">78.7% → 0.0%</text>
+   </g>
+   <g id="text_8">
+    <text style="fill: #2f8f5b; font: 700 8.2px 'sans-serif'; text-anchor: start" x="229.1832" y="88.410688" transform="rotate(-0, 229.1832, 88.410688)">2</text>
+   </g>
+   <g id="text_9">
+    <text style="fill: #22262a; font: 700 7.5px 'sans-serif'; text-anchor: start" x="248.91408" y="88.188234" transform="rotate(-0, 248.91408, 88.188234)">Control group</text>
+   </g>
+   <g id="text_10">
+    <text style="fill: #636b73; font: 6.6px 'sans-serif'; text-anchor: start" x="229.1832" y="105.654548" transform="rotate(-0, 229.1832, 105.654548)">Benign diagnostics preserved</text>
+   </g>
+   <g id="text_11">
+    <text style="fill: #2f8f5b; font: 700 7.2px 'sans-serif'; text-anchor: start" x="229.1832" y="126.077886" transform="rotate(-0, 229.1832, 126.077886)">100.0% pass after patch</text>
+   </g>
+   <g id="text_12">
+    <text style="fill: #3e78b2; font: 700 8.2px 'sans-serif'; text-anchor: start" x="409.0824" y="88.410688" transform="rotate(-0, 409.0824, 88.410688)">3</text>
+   </g>
+   <g id="text_13">
+    <text style="fill: #22262a; font: 700 7.5px 'sans-serif'; text-anchor: start" x="428.81328" y="88.188234" transform="rotate(-0, 428.81328, 88.188234)">Runtime lifecycle</text>
+   </g>
+   <g id="text_14">
+    <text style="fill: #636b73; font: 6.6px 'sans-serif'; text-anchor: start" x="409.0824" y="105.654548" transform="rotate(-0, 409.0824, 105.654548)">Receive / schedule / apply observed</text>
+   </g>
+   <g id="text_15">
+    <text style="fill: #3e78b2; font: 700 7.2px 'sans-serif'; text-anchor: start" x="409.0824" y="126.077886" transform="rotate(-0, 409.0824, 126.077886)">4/4 phases matched</text>
+   </g>
+   <g id="text_16">
+    <text style="fill: #3e78b2; font: 700 8.2px 'sans-serif'; text-anchor: start" x="136.332" y="180.053008" transform="rotate(-0, 136.332, 180.053008)">4</text>
+   </g>
+   <g id="text_17">
+    <text style="fill: #22262a; font: 700 7.5px 'sans-serif'; text-anchor: start" x="156.06288" y="179.859851" transform="rotate(-0, 156.06288, 179.859851)">Hardware observer</text>
+   </g>
+   <g id="text_18">
+    <text style="fill: #636b73; font: 6.6px 'sans-serif'; text-anchor: start" x="136.332" y="197.296868" transform="rotate(-0, 136.332, 197.296868)">Independent CAN listener agrees</text>
+   </g>
+   <g id="text_19">
+    <text style="fill: #3e78b2; font: 700 7.2px 'sans-serif'; text-anchor: start" x="136.332" y="217.720206" transform="rotate(-0, 136.332, 217.720206)">1000 trials, 0 mismatch</text>
+   </g>
+   <g id="text_20">
+    <text style="fill: #2f8f5b; font: 700 8.2px 'sans-serif'; text-anchor: start" x="327.8376" y="180.053008" transform="rotate(-0, 327.8376, 180.053008)">5</text>
+   </g>
+   <g id="text_21">
+    <text style="fill: #22262a; font: 700 7.5px 'sans-serif'; text-anchor: start" x="347.56848" y="179.859851" transform="rotate(-0, 347.56848, 179.859851)">Fleet model</text>
+   </g>
+   <g id="text_22">
+    <text style="fill: #636b73; font: 6.6px 'sans-serif'; text-anchor: start" x="327.8376" y="197.296868" transform="rotate(-0, 327.8376, 197.296868)">Exposure window reduced</text>
+   </g>
+   <g id="text_23">
+    <text style="fill: #2f8f5b; font: 700 7.2px 'sans-serif'; text-anchor: start" x="327.8376" y="217.692081" transform="rotate(-0, 327.8376, 217.692081)">68.9% fewer vehicle-days</text>
+   </g>
+   <g id="text_24">
+    <text style="fill: #22262a; font: 7.1px 'sans-serif'" transform="translate(143.516281 275.963605)">Claim supported by the chain: runtime patching closes the vulnerable UDS write path</text>
+    <text style="fill: #22262a; font: 7.1px 'sans-serif'" transform="translate(174.610398 284.183796)">while preserving diagnostic availability and reducing fleet exposure.</text>
+   </g>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="p83aa12d386">
+   <rect x="5.76" y="5.76" width="580.32" height="321.552"/>
+  </clipPath>
+ </defs>
+</svg>
