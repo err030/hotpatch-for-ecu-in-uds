@@ -1,0 +1,71 @@
+# 实验结果说明
+
+本目录保存本轮补采的 CSV 和原始日志。总入口为：
+
+- `results_manifest.csv`：结果类别、主文件、行数和完成状态
+- `results_validation.log`：自动一致性校验结果
+
+## 已完成
+
+### vcan before/after
+
+- `vcan/vcan_paired_detail.csv`
+- 同一 seed、同一 1000-case corpus：before 756/1000 attack success，after 0/1000。
+- 这里的链路是真实 Linux `vcan0`/SocketCAN，ECU 是软件模型，不应表述为硬件数据。
+
+### 真实硬件 fuzzing 与 Host/Nucleo
+
+- `hardware_fuzz/hardware_fuzz_paired_detail.csv`
+- `hardware_fuzz/hardware_fuzz_paired_summary.csv`
+- `hardware_fuzz/hardware_fuzz_by_mutation.csv`
+- 三个独立 seed，每个 seed 为 1000 cases × before/after；总计 6000 条 case。
+- before attack success：756、771、798；after：三个 run 均为 0。
+- Host/Nucleo 一致性：6000/6000；该结果只证明观察一致，不能解释为 observer overhead。
+
+### 真实 CAN latency 与状态完整性
+
+- `paired_hardware/real_can_latency_detail.csv`
+- `paired_hardware/real_can_latency_summary.csv`
+- `paired_hardware/real_can_latency_paired_delta.csv`
+- `paired_hardware/real_can_state_integrity.csv`
+- 每个状态 520 trials，前 20 条明确标记为 warm-up，正式统计各 500 trials。
+- 所有 UDS step 都保存 host monotonic send/receive timestamp、payload、latency 和 timeout。
+- before 的 500 次写入均改变目标 DID；after 的 500 次均返回 `7F2E31`，且 readback 均未改变。
+
+### 硬件 benign control
+
+- `paired_hardware/hardware_benign_control_detail.csv`
+- `paired_hardware/hardware_benign_control_summary.csv`
+- before/after 各 500 trials，包含 session control、read DID、正常 SecurityAccess、非隔离 DID `0x1235` 合法写读、TesterPresent 和 session reset。
+- 两个状态均为 500/500 trials 全操作通过。
+
+### Patch activation
+
+- `paired_hardware/patch_activation_detail.csv`
+- `paired_hardware/patch_activation_summary.csv`
+- 100 次独立复位与激活，全部在首次目标写入时得到 `7F2E31`。
+- activation median 为 10.571 ms；这是 host monotonic 观测到的 receive/validate → schedule → apply 完整控制链时间。
+- 每个阶段的 RTT 分开记录；复位时间作为实际 rollback boundary 记录。
+
+### Fleet simulation
+
+- `fleet_main/`：1000 车、60 天的详细 event simulation。
+- `fleet_sensitivity/fleet_sensitivity_detail.csv`：1728 个参数组合。
+- 敏感性网格覆盖 fleet size、delivery success、delivery delay、OTA rollout、attack rate 和 rollback/failure rate。
+
+## 当前边界
+
+- 没有执行“物理断开 Nucleo vs 只监听 Nucleo”的 A/B；因此不报告 observer latency overhead。
+- 当前固件没有 RTOS 高分辨率 task-period/jitter 和 CPU-load telemetry。activation CSV 中这些字段留空并标注 `not_instrumented_in_current_firmware`，没有用 host RTT 冒充 task jitter。
+- Fleet sensitivity 使用无 Monte-Carlo 噪声的 uniform-OTA closed-form expectation；详细车辆/动作轨迹仍以 `fleet_main/` 为准。
+
+## 复现脚本
+
+- `tools/collect_vcan_paired_results.py`
+- `tools/run_paired_hardware_fuzz_campaigns.py`
+- `tools/merge_paired_hardware_fuzz.py`
+- `tools/collect_paired_hardware_results.py`
+- `tools/summarize_paired_hardware_results.py`
+- `tools/run_fleet_ota_exposure_simulation.py`
+- `tools/run_fleet_sensitivity_analysis.py`
+- `tools/validate_results_bundle.py`

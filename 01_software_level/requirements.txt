@@ -1,0 +1,8 @@
+# CAN protocol backends used by the optional integration tests
+python-can
+can-isotp
+udsoncan
+
+# Plotting used by the evaluation and measurement scripts
+matplotlib
+numpy

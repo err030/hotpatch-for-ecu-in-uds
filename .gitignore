@@ -6,4 +6,4 @@ __pycache__/
 .venv/
 get-pip.py
 external/sdk/*.zip
-hardware level/**/build/
+02_hardware_level/**/build/

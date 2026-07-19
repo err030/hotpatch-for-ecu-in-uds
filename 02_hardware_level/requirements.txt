@@ -1,0 +1,20 @@
+# This file lists host tools for the hardware prototype.
+# It is not a pip requirements file.
+
+# nRF52840 build and flash
+# - GNU Arm Embedded Toolchain (arm-none-eabi-gcc, make)
+# - Nordic nRF5 SDK 17.1.0 (already stored under external/sdk/)
+# - Nordic nRF Command Line Tools (nrfjprog)
+# - SEGGER J-Link and an RTT viewer
+
+# Linux CAN tester
+# - can-utils (candump and cansend)
+# - a SocketCAN adapter such as CANable 2.0
+
+# Nucleo observer
+# - GNU Arm Embedded Toolchain
+# - STM32CubeG4 firmware package 1.6.3
+# - STM32CubeProgrammer or the board's drag-and-drop flash drive
+
+# Python scripts used with the hardware are covered by:
+#   01_software_level/requirements.txt
