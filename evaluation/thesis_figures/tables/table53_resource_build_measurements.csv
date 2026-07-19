@@ -1,0 +1,2 @@
+vulnerable_text,vulnerable_data,vulnerable_bss,runtime_text,runtime_data,runtime_bss,reserved_window_bytes,slot_metadata_bytes,quarantine_bytes,code_pool_bytes,toolchain,build_flags
+51560,2344,32072,56544,2342,32096,2080,214,80,728,arm-none-eabi GCC 10.3.1,-O0 -g3

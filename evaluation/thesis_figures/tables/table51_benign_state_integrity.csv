@@ -1,0 +1,7 @@
+property,before,after
+Complete benign workflows passed,500/500,500/500
+Constituent benign operations passed,5000/5000,5000/5000
+Positive target-write response (6E 1234),500/500,0/500
+NRC 0x31 returned (7F 2E 31),0/500,500/500
+Target DID modified,500/500,0/500
+Original target-DID value preserved,0/500,500/500

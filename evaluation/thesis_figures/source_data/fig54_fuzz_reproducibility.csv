@@ -1,0 +1,4 @@
+run_id,random_seed,before_pct,after_pct,cases_per_state
+run_1,20260710,75.6,0.0,1000
+run_2,20260711,77.1,0.0,1000
+run_3,20260712,79.8,0.0,1000

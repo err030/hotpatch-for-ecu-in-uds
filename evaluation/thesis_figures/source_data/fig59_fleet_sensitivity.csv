@@ -1,0 +1,17 @@
+hotpatch_capable_pct,additional_delivery_delay_h,exposure_reduction_pct,hotpatch_first_exposure_vehicle_days,fleet_size,horizon_days,random_seed,ota_slots,hotpatch_slots,ota_duration_min,hotpatch_duration_min,model
+70.0,0.0,46.3381,5089.359722,1000,60,20260710,20,120,45,3,same_discrete_event_model_as_fleet_main
+70.0,6.0,46.3358,5089.579167,1000,60,20260710,20,120,45,3,same_discrete_event_model_as_fleet_main
+70.0,24.0,39.2906,5757.752778,1000,60,20260710,20,120,45,3,same_discrete_event_model_as_fleet_main
+70.0,72.0,16.409399999999998,7927.835417,1000,60,20260710,20,120,45,3,same_discrete_event_model_as_fleet_main
+85.0,0.0,68.6791,2970.517361,1000,60,20260710,20,120,45,3,same_discrete_event_model_as_fleet_main
+85.0,6.0,68.6768,2970.736806,1000,60,20260710,20,120,45,3,same_discrete_event_model_as_fleet_main
+85.0,24.0,60.87050000000001,3711.092361,1000,60,20260710,20,120,45,3,same_discrete_event_model_as_fleet_main
+85.0,72.0,38.949,5790.152083,1000,60,20260710,20,120,45,3,same_discrete_event_model_as_fleet_main
+95.0,0.0,85.9359,1333.852778,1000,60,20260710,20,120,45,3,same_discrete_event_model_as_fleet_main
+95.0,6.0,85.9336,1334.072222,1000,60,20260710,20,120,45,3,same_discrete_event_model_as_fleet_main
+95.0,24.0,77.5843,2125.9375,1000,60,20260710,20,120,45,3,same_discrete_event_model_as_fleet_main
+95.0,72.0,56.213,4152.811111,1000,60,20260710,20,120,45,3,same_discrete_event_model_as_fleet_main
+100.0,0.0,95.34089999999999,441.873611,1000,60,20260710,20,120,45,3,same_discrete_event_model_as_fleet_main
+100.0,6.0,95.3386,442.093056,1000,60,20260710,20,120,45,3,same_discrete_event_model_as_fleet_main
+100.0,24.0,86.6598,1265.197222,1000,60,20260710,20,120,45,3,same_discrete_event_model_as_fleet_main
+100.0,72.0,65.5577,3266.553472,1000,60,20260710,20,120,45,3,same_discrete_event_model_as_fleet_main

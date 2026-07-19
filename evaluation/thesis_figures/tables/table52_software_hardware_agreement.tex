@@ -1,0 +1,23 @@
+\begin{table}[t]
+\centering
+\small
+\caption{Differential agreement between vCAN and real hardware for the shared paired corpus.}
+\label{tab:software-hardware-agreement}
+\begin{tabular}{lrrr}
+\toprule
+Metric & Before & After & Total \\
+\midrule
+Paired case ID and patch state & 1000/1000 & 1000/1000 & 2000/2000 \\
+Request payload & 1000/1000 & 1000/1000 & 2000/2000 \\
+Response payload & 1000/1000 & 1000/1000 & 2000/2000 \\
+Positive/negative response class & 1000/1000 & 1000/1000 & 2000/2000 \\
+Negative-response code (NRC) & 1000/1000 & 1000/1000 & 2000/2000 \\
+Attack-success outcome & 1000/1000 & 1000/1000 & 2000/2000 \\
+Timeout outcome & 1000/1000 & 1000/1000 & 2000/2000 \\
+State/readback agreement & not recorded & not recorded & requires paired readback capture \\
+\bottomrule
+\end{tabular}
+\begin{minipage}{0.98\linewidth}\footnotesize
+The comparison uses seed 20260710 and 1,000 identical case IDs/payloads per patch state (2,000 pairs total). Hardware run 1 is compared with the vCAN run. The response-class confusion matrix contains 756 positive/positive, 1,244 negative/negative, and zero off-diagonal cases. NRC agreement comprises 60 cases of 0x13, 1,184 cases of 0x31, and 756 positive responses without an NRC. Paired fuzz files do not contain read-before/read-after values, so state agreement is not inferred from the response code.
+\end{minipage}
+\end{table}

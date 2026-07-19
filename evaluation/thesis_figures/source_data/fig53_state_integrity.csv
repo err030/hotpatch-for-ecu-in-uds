@@ -1,0 +1,3 @@
+patch_state,trials,state_changed,state_changed_pct
+before,500,500,100.0
+after,500,0,0.0

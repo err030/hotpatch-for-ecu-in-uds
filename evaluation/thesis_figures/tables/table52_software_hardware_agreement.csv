@@ -1,0 +1,9 @@
+metric,before_agreement,after_agreement,total_agreement
+Paired case ID and patch state,1000/1000,1000/1000,2000/2000
+Request payload,1000/1000,1000/1000,2000/2000
+Response payload,1000/1000,1000/1000,2000/2000
+Positive/negative response class,1000/1000,1000/1000,2000/2000
+Negative-response code (NRC),1000/1000,1000/1000,2000/2000
+Attack-success outcome,1000/1000,1000/1000,2000/2000
+Timeout outcome,1000/1000,1000/1000,2000/2000
+State/readback agreement,not recorded,not recorded,requires paired readback capture

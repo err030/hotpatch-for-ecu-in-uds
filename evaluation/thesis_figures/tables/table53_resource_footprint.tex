@@ -1,0 +1,24 @@
+\begin{table}[t]
+\centering
+\small
+\caption{Static resource footprint of the nRF52840 firmware profiles.}
+\label{tab:resource-footprint}
+\begin{tabular}{p{0.30\linewidth}rrp{0.20\linewidth}}
+\toprule
+Metric & Vulnerable & Kintsugi runtime & Delta/status \\
+\midrule
+Firmware Flash (text + data) & 53904 B & 58886 B & +4982 B \\
+Static RAM (data + bss) & 34416 B & 34438 B & +22 B \\
+Reserved hotpatch RAM window & 2080 B & 2080 B & linker reservation \\
+Hotpatch slot metadata & 0 B active section & 214 B & 10 configured slots \\
+Quarantine buffer & 80 B & 80 B & static capacity \\
+Code allocator pool & linked reserve & 728 B & 640 B configured payload capacity \\
+Peak active/quarantine usage & n/a & not instrumented & unavailable \\
+Task stack high-water mark & not captured & not captured & unavailable \\
+CPU utilisation / task jitter & not instrumented & not instrumented & unavailable \\
+\bottomrule
+\end{tabular}
+\begin{minipage}{0.98\linewidth}\footnotesize
+Both profiles were rebuilt with the same arm-none-eabi toolchain, -O0 and -g3. Flash is text+data and static RAM is data+bss as reported by arm-none-eabi-size. The profile delta is a build-level comparison, not an isolated microbenchmark of individual framework functions. Runtime high-water, CPU and jitter values remain unavailable and are not estimated.
+\end{minipage}
+\end{table}

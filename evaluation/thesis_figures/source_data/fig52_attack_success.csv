@@ -1,0 +1,4 @@
+workload,before_pct,after_pct,before_rejected_pct,after_rejected_pct,n_before,n_after
+Target-DID attacks,100.000000,0.000000,0.000000,100.000000,2325,2325
+Mixed hardware corpus,77.500000,0.000000,22.500000,100.000000,3000,3000
+vcan corpus,75.600000,0.000000,24.400000,100.000000,1000,1000

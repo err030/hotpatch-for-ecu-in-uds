@@ -1,0 +1,3 @@
+strategy,cumulative_exposure_vehicle_days,time_to_80pct_protection_h,time_to_full_protection_h
+ota_only,9484.128472222223,359.583333,456.033333
+hotpatch_first,2970.5173611111113,16.883333,456.033333
