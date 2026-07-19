@@ -1,0 +1,12 @@
+generated_at=2026-07-10T12:26:54+02:00
+scenario_count=1728
+attack_success_probability=0.774000
+exposure_reduction_min=0.217143
+exposure_reduction_max=0.998612
+fleet_sizes=100,1000,10000
+delivery_success=0.70,0.85,0.95,1.00
+delivery_delay_h=1,6,24,72
+ota_rollout_days=7,14,30,60
+attack_attempt_rates=low:0.01,medium:0.05,high:0.20 per vehicle-day
+rollback_failure_rates=0.00,0.01,0.05
+model_note=closed-form expectation; detailed 1000-vehicle event simulation remains the main trajectory evidence

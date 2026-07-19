@@ -5,7 +5,7 @@
 static void uds_config_table_init_default(uds_config_table_t *table)
 {
     memset(table, 0, sizeof(*table));
-    table->count = 2U;
+    table->count = 3U;
     table->entries[0].did = UDS_VALID_WRITE_DID;
     table->entries[0].readable = true;
     table->entries[0].writable = true;
@@ -21,6 +21,15 @@ static void uds_config_table_init_default(uds_config_table_t *table)
     table->entries[1].value_length = 2U;
     table->entries[1].value[0] = 0x42U;
     table->entries[1].value[1] = 0x10U;
+
+    table->entries[2].did = UDS_BENIGN_CONTROL_WRITE_DID;
+    table->entries[2].readable = true;
+    table->entries[2].writable = true;
+    table->entries[2].requires_extended_session = true;
+    table->entries[2].requires_security_unlock = true;
+    table->entries[2].required_security_level = UDS_SECURITY_LEVEL_CONFIG_WRITE;
+    table->entries[2].min_write_length = 1U;
+    table->entries[2].max_write_length = 4U;
 }
 
 static uds_config_entry_t *uds_config_table_find_mutable(
@@ -216,6 +225,7 @@ void uds_dispatcher_init_strict(uds_dispatcher_t *dispatcher)
         .clear_unlock_on_session_change = true,
         .allow_replay_without_unlock = false,
         .quarantine_config_write_did = false,
+        .quarantined_did = UDS_VALID_WRITE_DID,
         .max_failed_attempts = 2U,
         .lockout_duration_ticks = 3U,
     };
@@ -231,6 +241,7 @@ void uds_dispatcher_init_vulnerable(uds_dispatcher_t *dispatcher)
         .clear_unlock_on_session_change = true,
         .allow_replay_without_unlock = true,
         .quarantine_config_write_did = false,
+        .quarantined_did = UDS_VALID_WRITE_DID,
         .max_failed_attempts = 2U,
         .lockout_duration_ticks = 3U,
     };
@@ -249,25 +260,27 @@ void uds_dispatcher_apply_strict_patch(uds_dispatcher_t *dispatcher)
     dispatcher->policy.clear_unlock_on_session_change = true;
     dispatcher->policy.allow_replay_without_unlock = false;
     dispatcher->policy.quarantine_config_write_did = false;
+    dispatcher->policy.quarantined_did = UDS_VALID_WRITE_DID;
     uds_session_state_clear_unlock(&dispatcher->session_state);
     dispatcher->session_state.pending_seed_valid = false;
     uds_replay_guard_reset(&dispatcher->replay_guard);
 }
 
-void uds_dispatcher_apply_security_access_hotpatch(uds_dispatcher_t *dispatcher)
+void uds_dispatcher_activate_quarantine_policy(uds_dispatcher_t *dispatcher)
 {
     if (dispatcher == NULL) {
         return;
     }
 
-    dispatcher->policy.write_requires_unlock = true;
-    dispatcher->policy.clear_unlock_on_failed_key = true;
-    dispatcher->policy.clear_unlock_on_session_change = true;
-    dispatcher->policy.allow_replay_without_unlock = false;
+    dispatcher->policy.quarantined_did = UDS_VALID_WRITE_DID;
     dispatcher->policy.quarantine_config_write_did = true;
-    uds_session_state_clear_unlock(&dispatcher->session_state);
-    dispatcher->session_state.pending_seed_valid = false;
-    uds_replay_guard_reset(&dispatcher->replay_guard);
+}
+
+bool uds_dispatcher_quarantine_policy_active(const uds_dispatcher_t *dispatcher)
+{
+    return dispatcher != NULL &&
+        dispatcher->policy.quarantine_config_write_did &&
+        dispatcher->policy.quarantined_did == UDS_VALID_WRITE_DID;
 }
 
 void uds_dispatcher_tick(uds_dispatcher_t *dispatcher)
@@ -489,7 +502,7 @@ static void uds_handle_write_data_by_identifier(
     }
 
     if (dispatcher->policy.quarantine_config_write_did &&
-        request->did == UDS_VALID_WRITE_DID) {
+        request->did == dispatcher->policy.quarantined_did) {
         uds_response_make_negative(response, request->sid, NRC_REQUEST_OUT_OF_RANGE);
         return;
     }
@@ -557,6 +570,29 @@ static void uds_handle_read_data_by_identifier(
     );
 }
 
+static void uds_handle_tester_present(
+    const uds_request_t *request,
+    uds_response_t *response
+)
+{
+    uint8_t response_data[1];
+    uint8_t subfunction;
+
+    if (!request->has_subfunction || request->data_length != 0U) {
+        uds_response_make_negative(response, request->sid, NRC_INCORRECT_MESSAGE_LENGTH);
+        return;
+    }
+
+    subfunction = (uint8_t)(request->subfunction & 0x7FU);
+    if (subfunction != 0x00U) {
+        uds_response_make_negative(response, request->sid, NRC_SUBFUNCTION_NOT_SUPPORTED);
+        return;
+    }
+
+    response_data[0] = subfunction;
+    uds_response_make_positive(response, request->sid, response_data, 1U);
+}
+
 void uds_dispatcher_handle_request(
     uds_dispatcher_t *dispatcher,
     const uds_request_t *request,
@@ -584,6 +620,10 @@ void uds_dispatcher_handle_request(
 
     case SID_WRITE_DATA_BY_IDENTIFIER:
         uds_handle_write_data_by_identifier(dispatcher, request, response);
+        return;
+
+    case SID_TESTER_PRESENT:
+        uds_handle_tester_present(request, response);
         return;
 
     default:

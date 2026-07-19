@@ -2,8 +2,10 @@
 
 #include <string.h>
 
+#include "FreeRTOS.h"
 #include "board_baseline_config.h"
 #include "hp_manager.h"
+#include "task.h"
 #include "uds_protocol.h"
 
 typedef struct {
@@ -42,17 +44,32 @@ static void board_kintsugi_build_gate_patch(board_kintsugi_patch_blob_t *blob)
     blob->code[3] = 0x47U;
 }
 
-static void board_kintsugi_bridge_poll(board_kintsugi_bridge_t *bridge)
+static bool board_kintsugi_commit_applied_policy(board_kintsugi_bridge_t *bridge)
 {
-    if (bridge == NULL || bridge->ecu == NULL || bridge->hotpatch_applied) {
-        return;
+    bool policy_active;
+
+    if (bridge == NULL || bridge->ecu == NULL) {
+        return false;
+    }
+    if (bridge->hotpatch_applied) {
+        return uds_ecu_quarantine_policy_active(bridge->ecu);
     }
     if (!board_kintsugi_gate_active()) {
-        return;
+        return false;
     }
 
-    uds_ecu_apply_security_access_hotpatch(bridge->ecu);
-    bridge->hotpatch_applied = true;
+    /*
+     * Prototype-specific policy adapter. The Kintsugi applicator must first
+     * activate the RAM-resident gate; only then is the UDS quarantine policy
+     * committed for the next protected request.
+     */
+    taskENTER_CRITICAL();
+    uds_ecu_activate_quarantine_policy(bridge->ecu);
+    policy_active = uds_ecu_quarantine_policy_active(bridge->ecu);
+    bridge->hotpatch_applied = policy_active;
+    taskEXIT_CRITICAL();
+
+    return policy_active;
 }
 
 static bool board_kintsugi_receive_security_hotpatch(board_kintsugi_bridge_t *bridge)
@@ -89,7 +106,10 @@ static bool board_kintsugi_schedule_security_hotpatch(board_kintsugi_bridge_t *b
     if (bridge == NULL || bridge->ecu == NULL || !bridge->initialized) {
         return false;
     }
-    if (bridge->hotpatch_applied || bridge->hotpatch_scheduled) {
+    if (bridge->hotpatch_applied) {
+        return uds_ecu_quarantine_policy_active(bridge->ecu);
+    }
+    if (bridge->hotpatch_scheduled) {
         return true;
     }
     if (!bridge->hotpatch_loaded) {
@@ -112,7 +132,7 @@ static bool board_kintsugi_apply_scheduled_security_hotpatch(board_kintsugi_brid
         return false;
     }
     if (bridge->hotpatch_applied) {
-        return true;
+        return uds_ecu_quarantine_policy_active(bridge->ecu);
     }
     if (!bridge->hotpatch_scheduled) {
         return false;
@@ -124,8 +144,7 @@ static bool board_kintsugi_apply_scheduled_security_hotpatch(board_kintsugi_brid
         return false;
     }
 
-    board_kintsugi_bridge_poll(bridge);
-    return bridge->hotpatch_applied;
+    return board_kintsugi_commit_applied_policy(bridge);
 }
 
 static bool board_kintsugi_apply_security_hotpatch(board_kintsugi_bridge_t *bridge)

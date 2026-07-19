@@ -1,8 +1,0 @@
-metric,ota_only,hotpatch_first
-time_to_first_protection_min,30,2
-time_to_80_percent_protection_min,525,27
-full_campaign_finish_min,755,755
-cumulative_exposure_window_min,6605,2787
-response_unavailable_vehicle_min,600,152
-total_unavailable_vehicle_min,600,632
-scheduled_actions,20,36

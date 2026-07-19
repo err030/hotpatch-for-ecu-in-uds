@@ -1,0 +1,127 @@
+2026-07-16T18:41:34.775+02:00 start campaign=latency interface=can0
+2026-07-16T18:41:35.185+02:00 board_reset duration_ms=409.673
+2026-07-16T18:41:56.835+02:00 latency patch_state=before trial=100/520
+2026-07-16T18:42:17.343+02:00 latency patch_state=before trial=200/520
+2026-07-16T18:42:37.849+02:00 latency patch_state=before trial=300/520
+2026-07-16T18:42:58.354+02:00 latency patch_state=before trial=400/520
+2026-07-16T18:43:18.861+02:00 latency patch_state=before trial=500/520
+2026-07-16T18:43:23.376+02:00 board_reset duration_ms=409.813
+2026-07-16T18:43:45.126+02:00 latency patch_state=after trial=100/520
+2026-07-16T18:44:05.636+02:00 latency patch_state=after trial=200/520
+2026-07-16T18:44:26.145+02:00 latency patch_state=after trial=300/520
+2026-07-16T18:44:46.654+02:00 latency patch_state=after trial=400/520
+2026-07-16T18:45:07.161+02:00 latency patch_state=after trial=500/520
+2026-07-16T18:45:11.330+02:00 collection complete
+2026-07-16T18:45:38.262+02:00 start campaign=activation interface=can0
+2026-07-16T18:45:38.677+02:00 board_reset duration_ms=415.014
+2026-07-16T18:45:40.229+02:00 board_reset duration_ms=369.392
+2026-07-16T18:45:41.803+02:00 board_reset duration_ms=385.286
+2026-07-16T18:45:43.389+02:00 board_reset duration_ms=396.920
+2026-07-16T18:45:44.952+02:00 board_reset duration_ms=379.985
+2026-07-16T18:45:46.496+02:00 board_reset duration_ms=359.824
+2026-07-16T18:45:48.064+02:00 board_reset duration_ms=373.950
+2026-07-16T18:45:49.612+02:00 board_reset duration_ms=359.981
+2026-07-16T18:45:51.174+02:00 board_reset duration_ms=369.757
+2026-07-16T18:45:52.756+02:00 board_reset duration_ms=391.781
+2026-07-16T18:45:54.319+02:00 board_reset duration_ms=380.633
+2026-07-16T18:45:55.320+02:00 activation trial=10/100
+2026-07-16T18:45:55.893+02:00 board_reset duration_ms=383.774
+2026-07-16T18:45:57.461+02:00 board_reset duration_ms=386.794
+2026-07-16T18:45:59.022+02:00 board_reset duration_ms=371.917
+2026-07-16T18:46:00.598+02:00 board_reset duration_ms=384.441
+2026-07-16T18:46:02.174+02:00 board_reset duration_ms=384.617
+2026-07-16T18:46:03.766+02:00 board_reset duration_ms=407.371
+2026-07-16T18:46:05.320+02:00 board_reset duration_ms=373.901
+2026-07-16T18:46:06.894+02:00 board_reset duration_ms=381.426
+2026-07-16T18:46:08.463+02:00 board_reset duration_ms=384.845
+2026-07-16T18:46:10.029+02:00 board_reset duration_ms=372.493
+2026-07-16T18:46:11.030+02:00 activation trial=20/100
+2026-07-16T18:46:11.632+02:00 board_reset duration_ms=405.259
+2026-07-16T18:46:13.205+02:00 board_reset duration_ms=385.154
+2026-07-16T18:46:14.797+02:00 board_reset duration_ms=399.311
+2026-07-16T18:46:16.396+02:00 board_reset duration_ms=403.907
+2026-07-16T18:46:17.974+02:00 board_reset duration_ms=388.112
+2026-07-16T18:46:19.539+02:00 board_reset duration_ms=385.361
+2026-07-16T18:46:21.122+02:00 board_reset duration_ms=402.056
+2026-07-16T18:46:22.689+02:00 board_reset duration_ms=381.133
+2026-07-16T18:46:24.275+02:00 board_reset duration_ms=396.132
+2026-07-16T18:46:25.843+02:00 board_reset duration_ms=385.546
+2026-07-16T18:46:26.844+02:00 activation trial=30/100
+2026-07-16T18:46:27.423+02:00 board_reset duration_ms=399.781
+2026-07-16T18:46:28.993+02:00 board_reset duration_ms=385.980
+2026-07-16T18:46:30.568+02:00 board_reset duration_ms=384.483
+2026-07-16T18:46:32.137+02:00 board_reset duration_ms=379.320
+2026-07-16T18:46:33.681+02:00 board_reset duration_ms=364.244
+2026-07-16T18:46:35.242+02:00 board_reset duration_ms=368.742
+2026-07-16T18:46:36.821+02:00 board_reset duration_ms=387.104
+2026-07-16T18:46:38.376+02:00 board_reset duration_ms=367.781
+2026-07-16T18:46:39.979+02:00 board_reset duration_ms=408.366
+2026-07-16T18:46:41.538+02:00 board_reset duration_ms=374.494
+2026-07-16T18:46:42.540+02:00 activation trial=40/100
+2026-07-16T18:46:43.091+02:00 board_reset duration_ms=361.998
+2026-07-16T18:46:44.677+02:00 board_reset duration_ms=383.502
+2026-07-16T18:46:46.228+02:00 board_reset duration_ms=366.992
+2026-07-16T18:46:47.785+02:00 board_reset duration_ms=370.223
+2026-07-16T18:46:49.348+02:00 board_reset duration_ms=370.885
+2026-07-16T18:46:50.932+02:00 board_reset duration_ms=387.557
+2026-07-16T18:46:52.520+02:00 board_reset duration_ms=401.736
+2026-07-16T18:46:54.075+02:00 board_reset duration_ms=373.888
+2026-07-16T18:46:55.647+02:00 board_reset duration_ms=385.471
+2026-07-16T18:46:57.198+02:00 board_reset duration_ms=365.920
+2026-07-16T18:46:58.199+02:00 activation trial=50/100
+2026-07-16T18:46:58.767+02:00 board_reset duration_ms=377.785
+2026-07-16T18:47:00.333+02:00 board_reset duration_ms=381.352
+2026-07-16T18:47:01.896+02:00 board_reset duration_ms=380.478
+2026-07-16T18:47:03.469+02:00 board_reset duration_ms=379.677
+2026-07-16T18:47:05.045+02:00 board_reset duration_ms=386.463
+2026-07-16T18:47:06.615+02:00 board_reset duration_ms=383.767
+2026-07-16T18:47:08.185+02:00 board_reset duration_ms=387.005
+2026-07-16T18:47:09.742+02:00 board_reset duration_ms=372.563
+2026-07-16T18:47:11.298+02:00 board_reset duration_ms=371.136
+2026-07-16T18:47:12.883+02:00 board_reset duration_ms=395.213
+2026-07-16T18:47:13.884+02:00 activation trial=60/100
+2026-07-16T18:47:14.444+02:00 board_reset duration_ms=375.513
+2026-07-16T18:47:16.022+02:00 board_reset duration_ms=379.798
+2026-07-16T18:47:17.608+02:00 board_reset duration_ms=397.144
+2026-07-16T18:47:19.186+02:00 board_reset duration_ms=381.392
+2026-07-16T18:47:20.754+02:00 board_reset duration_ms=375.940
+2026-07-16T18:47:22.333+02:00 board_reset duration_ms=391.237
+2026-07-16T18:47:23.910+02:00 board_reset duration_ms=388.456
+2026-07-16T18:47:25.492+02:00 board_reset duration_ms=392.194
+2026-07-16T18:47:27.069+02:00 board_reset duration_ms=388.957
+2026-07-16T18:47:28.642+02:00 board_reset duration_ms=387.629
+2026-07-16T18:47:29.643+02:00 activation trial=70/100
+2026-07-16T18:47:30.216+02:00 board_reset duration_ms=396.030
+2026-07-16T18:47:31.795+02:00 board_reset duration_ms=387.702
+2026-07-16T18:47:33.346+02:00 board_reset duration_ms=374.114
+2026-07-16T18:47:34.931+02:00 board_reset duration_ms=394.898
+2026-07-16T18:47:36.508+02:00 board_reset duration_ms=386.064
+2026-07-16T18:47:38.077+02:00 board_reset duration_ms=390.353
+2026-07-16T18:47:39.642+02:00 board_reset duration_ms=376.139
+2026-07-16T18:47:41.212+02:00 board_reset duration_ms=381.187
+2026-07-16T18:47:42.803+02:00 board_reset duration_ms=401.570
+2026-07-16T18:47:44.369+02:00 board_reset duration_ms=372.588
+2026-07-16T18:47:45.370+02:00 activation trial=80/100
+2026-07-16T18:47:45.979+02:00 board_reset duration_ms=408.076
+2026-07-16T18:47:47.550+02:00 board_reset duration_ms=386.490
+2026-07-16T18:47:49.134+02:00 board_reset duration_ms=394.089
+2026-07-16T18:47:50.727+02:00 board_reset duration_ms=410.087
+2026-07-16T18:47:52.304+02:00 board_reset duration_ms=397.224
+2026-07-16T18:47:53.870+02:00 board_reset duration_ms=388.044
+2026-07-16T18:47:55.445+02:00 board_reset duration_ms=382.778
+2026-07-16T18:47:57.023+02:00 board_reset duration_ms=384.287
+2026-07-16T18:47:58.605+02:00 board_reset duration_ms=401.999
+2026-07-16T18:48:00.178+02:00 board_reset duration_ms=383.311
+2026-07-16T18:48:01.179+02:00 activation trial=90/100
+2026-07-16T18:48:01.747+02:00 board_reset duration_ms=382.893
+2026-07-16T18:48:03.323+02:00 board_reset duration_ms=386.619
+2026-07-16T18:48:04.869+02:00 board_reset duration_ms=359.755
+2026-07-16T18:48:06.455+02:00 board_reset duration_ms=387.985
+2026-07-16T18:48:08.020+02:00 board_reset duration_ms=379.688
+2026-07-16T18:48:09.578+02:00 board_reset duration_ms=370.374
+2026-07-16T18:48:11.172+02:00 board_reset duration_ms=396.518
+2026-07-16T18:48:12.735+02:00 board_reset duration_ms=382.152
+2026-07-16T18:48:14.337+02:00 board_reset duration_ms=409.782
+2026-07-16T18:48:15.908+02:00 board_reset duration_ms=385.126
+2026-07-16T18:48:16.909+02:00 activation trial=100/100
+2026-07-16T18:48:16.912+02:00 collection complete

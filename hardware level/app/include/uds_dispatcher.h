@@ -11,6 +11,7 @@ extern "C" {
 #endif
 
 #define UDS_VALID_WRITE_DID 0x1234U
+#define UDS_BENIGN_CONTROL_WRITE_DID 0x1235U
 #define UDS_READ_ONLY_STATUS_DID 0x1001U
 #define UDS_SEED_MASK 0xA55AU
 #define UDS_SECURITY_LEVEL_CONFIG_WRITE 0x01U
@@ -75,6 +76,7 @@ typedef struct {
     bool clear_unlock_on_session_change;
     bool allow_replay_without_unlock;
     bool quarantine_config_write_did;
+    uint16_t quarantined_did;
     uint8_t max_failed_attempts;
     uint8_t lockout_duration_ticks;
 } uds_dispatcher_policy_t;
@@ -89,7 +91,8 @@ typedef struct {
 void uds_dispatcher_init_strict(uds_dispatcher_t *dispatcher);
 void uds_dispatcher_init_vulnerable(uds_dispatcher_t *dispatcher);
 void uds_dispatcher_apply_strict_patch(uds_dispatcher_t *dispatcher);
-void uds_dispatcher_apply_security_access_hotpatch(uds_dispatcher_t *dispatcher);
+void uds_dispatcher_activate_quarantine_policy(uds_dispatcher_t *dispatcher);
+bool uds_dispatcher_quarantine_policy_active(const uds_dispatcher_t *dispatcher);
 void uds_dispatcher_tick(uds_dispatcher_t *dispatcher);
 
 uds_security_phase_t uds_dispatcher_security_phase(

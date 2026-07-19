@@ -1,0 +1,3 @@
+patch_state,trials,attack_successes,state_changes,expected_write_response,matching_write_responses
+before,500,500,500,6E1234,500
+after,500,0,0,7F2E31,500

@@ -1,0 +1,10 @@
+latency_detail_rows=7280
+latency_non_warmup_rows=7000
+latency_timeouts=0
+state_integrity_rows=1040
+after_state_changes=0
+benign_detail_rows=10000
+benign_failed_operations=0
+activation_rows=100
+activation_protected=100
+runtime_task_jitter_status=not_instrumented_in_current_firmware

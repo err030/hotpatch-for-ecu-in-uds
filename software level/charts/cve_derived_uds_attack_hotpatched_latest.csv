@@ -1,7 +1,0 @@
-cve_basis,case,request,response,expected,passed,note
-CVE-2020-17443,short DiagnosticSessionControl request,UDS 10,7F1013,7F1013,true,matched 7F1013
-CVE-2018-16603,single-frame PCI length exceeds actual DLC,raw 072E12,<none>,<none>,true,"no response, malformed frame was dropped before dispatcher"
-setup,enter extended session,UDS 1003,500300321388,500300321388,true,matched 500300321388
-setup,request seed,UDS 2701,67011205,6701xxxx,true,seed=0x1205
-setup,unlock security level 1,UDS 2702B75F,6702,6702,true,matched 6702
-CVE-2018-16524,DID write with zero-length data,UDS 2E1234,7F2E31,7F2E31,true,matched 7F2E31

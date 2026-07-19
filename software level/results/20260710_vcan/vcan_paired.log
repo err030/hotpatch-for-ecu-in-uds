@@ -1,0 +1,8 @@
+started_at=2026-07-10T12:46:28+02:00
+interface=vcan0
+random_seed=20260710
+cases_per_state=1000
+before_attack_success=756/1000
+after_attack_success=0/1000
+paired_corpus_identical=true
+completed_at=2026-07-10T12:46:29+02:00

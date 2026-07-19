@@ -608,6 +608,7 @@ def main() -> int:
     vehicles_csv = charts_dir / f"{prefix}_vehicles.csv"
     timeseries_csv = charts_dir / f"{prefix}_timeseries.csv"
     references_md = charts_dir / f"{prefix}_references.md"
+    log_path = charts_dir / f"{prefix}.log"
     pdf_path = pdf_dir / f"{prefix}.pdf"
 
     write_summary_csv(summary_csv, summaries)
@@ -626,6 +627,22 @@ def main() -> int:
     ota_exp = float(by_strategy[STRATEGY_OTA_ONLY]["cumulative_exposure_vehicle_days"])
     hotpatch_exp = float(by_strategy[STRATEGY_HOTPATCH_FIRST]["cumulative_exposure_vehicle_days"])
     reduction = 1.0 - hotpatch_exp / ota_exp if ota_exp else 0.0
+    log_path.write_text(
+        "\n".join(
+            [
+                f"generated_at={datetime.now().astimezone().isoformat(timespec='seconds')}",
+                f"fleet_size={args.fleet_size}",
+                f"horizon_days={args.horizon_days}",
+                f"seed={args.seed}",
+                f"attack_success_probability={attack_probability:.6f}",
+                f"ota_only_exposure_vehicle_days={ota_exp:.6f}",
+                f"hotpatch_first_exposure_vehicle_days={hotpatch_exp:.6f}",
+                f"exposure_reduction={reduction:.6f}",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
 
     print(f"fleet_size={args.fleet_size}")
     print(f"attack_success_probability={attack_probability:.6f}")
@@ -639,6 +656,7 @@ def main() -> int:
     print(f"wrote {vehicles_csv}")
     print(f"wrote {timeseries_csv}")
     print(f"wrote {references_md}")
+    print(f"wrote {log_path}")
     print(f"wrote {pdf_path}")
     return 0
 

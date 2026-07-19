@@ -1,0 +1,6 @@
+source_detail_files=6
+combined_rows=6000
+paired_validation_passed=true
+run_1_paired_corpus_identical=true
+run_2_paired_corpus_identical=true
+run_3_paired_corpus_identical=true

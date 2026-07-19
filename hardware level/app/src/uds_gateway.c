@@ -14,13 +14,15 @@ static bool uds_gateway_service_allowed(
     case UDS_GATEWAY_MODE_RESTRICTED:
         return sid == SID_DIAGNOSTIC_SESSION_CONTROL ||
                sid == SID_READ_DATA_BY_IDENTIFIER ||
-               sid == SID_SECURITY_ACCESS;
+               sid == SID_SECURITY_ACCESS ||
+               sid == SID_TESTER_PRESENT;
 
     case UDS_GATEWAY_MODE_MISCONFIGURED:
         return sid == SID_DIAGNOSTIC_SESSION_CONTROL ||
                sid == SID_READ_DATA_BY_IDENTIFIER ||
                sid == SID_SECURITY_ACCESS ||
-               sid == SID_WRITE_DATA_BY_IDENTIFIER;
+               sid == SID_WRITE_DATA_BY_IDENTIFIER ||
+               sid == SID_TESTER_PRESENT;
 
     default:
         return false;

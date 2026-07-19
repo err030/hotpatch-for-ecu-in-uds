@@ -1,0 +1,13 @@
+category,primary_artifact,data_rows,status,note
+vcan,software level/results/20260710_vcan/vcan_paired_detail.csv,2000,complete,paired before/after over Linux vcan0
+hardware_fuzz,software level/results/20260710_hardware_fuzz/hardware_fuzz_paired_detail.csv,6000,complete,3 seeds x 1000 cases x 2 states
+host_vs_nucleo,software level/results/20260710_hardware_fuzz/hardware_fuzz_paired_summary.csv,6,complete,6000/6000 observer-consistent; no overhead claim
+real_can_latency,software level/results/20260710_paired_hardware/real_can_latency_detail.csv,7280,complete,520 trials/state; first 20 marked warm-up
+state_integrity,software level/results/20260710_paired_hardware/real_can_state_integrity.csv,1040,complete,unique values and before/after readback
+hardware_benign,software level/results/20260710_paired_hardware/hardware_benign_control_detail.csv,10000,complete,500 trials/state; all operations retained
+patch_activation,software level/results/20260710_paired_hardware/patch_activation_detail.csv,100,partial,real host monotonic activation/rollback; RTOS task jitter and CPU load not instrumented
+fleet_main,software level/results/20260710_fleet_main/fleet_ota_exposure_20260710_paired_hardware_1000v_60d_summary.csv,2,complete,"1000 vehicles, 60 days, paired-hardware attack rate"
+fleet_sensitivity,software level/results/20260710_fleet_sensitivity/fleet_sensitivity_detail.csv,1728,complete,1728 parameter combinations
+fleet_event_sensitivity,software level/results/20260710_fleet_event_sensitivity/fleet_event_sensitivity_detail.csv,16,complete,same discrete-event model as fleet_main; 85% capable and 0 h reproduces 68.7%
+software_hardware_agreement,evaluation/thesis_figures/tables/table52_software_hardware_agreement.csv,2000,partial,response payload/class/NRC/outcome 2000/2000; paired readback not recorded
+resource_footprint,evaluation/thesis_figures/tables/table53_resource_footprint.csv,9,partial,"static build footprint measured; runtime high-water, CPU and jitter unavailable"

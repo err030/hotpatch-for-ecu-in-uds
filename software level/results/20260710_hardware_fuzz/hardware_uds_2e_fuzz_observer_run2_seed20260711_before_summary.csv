@@ -1,0 +1,17 @@
+metric,value
+run_id,run_2
+random_seed,20260711
+patch_state,before
+total_trials,1000
+setup_positive,true
+attack_pass_count,771
+attack_pass_rate,0.771000
+attack_fail_count,229
+response_count,1000
+timeout_count,0
+observer_request_seen_count,1000
+observer_response_seen_count,1000
+observer_consistent_count,1000
+observer_consistency_rate,1.000000
+can0_latency_avg_ms,2.999333
+observer_latency_avg_ms,4.082033

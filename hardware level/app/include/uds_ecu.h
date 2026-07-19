@@ -27,7 +27,8 @@ void uds_ecu_init_vulnerable(
     uint32_t response_id
 );
 
-void uds_ecu_apply_security_access_hotpatch(uds_ecu_t *ecu);
+void uds_ecu_activate_quarantine_policy(uds_ecu_t *ecu);
+bool uds_ecu_quarantine_policy_active(const uds_ecu_t *ecu);
 
 bool uds_ecu_accepts_request_frame(
     const uds_ecu_t *ecu,

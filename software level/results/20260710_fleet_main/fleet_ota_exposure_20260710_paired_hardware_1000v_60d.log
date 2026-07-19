@@ -1,0 +1,8 @@
+generated_at=2026-07-10T12:45:29+02:00
+fleet_size=1000
+horizon_days=60
+seed=20260710
+attack_success_probability=0.775000
+ota_only_exposure_vehicle_days=9484.128472
+hotpatch_first_exposure_vehicle_days=2970.517361
+exposure_reduction=0.686791

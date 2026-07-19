@@ -204,10 +204,8 @@ class BaseECU:
         if self.state.session != SESSION_EXTENDED:
             return negative_response(request.sid, NRC_CONDITIONS_NOT_CORRECT)
         if self.write_requires_unlock and not self.state.security_unlocked:
-            if self._allow_replay(request):
-                self.state.writes[request.did] = request.data
-                return positive_response(request.sid, request.did.to_bytes(2, "big"))
-            return negative_response(request.sid, NRC_SECURITY_ACCESS_DENIED)
+            if not self._allow_replay(request):
+                return negative_response(request.sid, NRC_SECURITY_ACCESS_DENIED)
         if self.quarantine_config_write_did and request.did == VALID_WRITE_DID:
             return negative_response(request.sid, NRC_REQUEST_OUT_OF_RANGE)
         if not (WRITE_DID_MIN_LENGTH <= len(request.data) <= WRITE_DID_MAX_LENGTH):

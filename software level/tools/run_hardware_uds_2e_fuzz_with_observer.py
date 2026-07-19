@@ -42,6 +42,9 @@ class Mutation:
 
 @dataclass
 class FuzzRow:
+    run_id: str
+    random_seed: int
+    patch_state: str
     trial: int
     mutation_kind: str
     did: int
@@ -133,6 +136,20 @@ def classify_response(payload: bytes | None) -> tuple[str, str, str]:
     return "other", f"0x{sid:02X}", ""
 
 
+def response_matches_request(request: bytes, response: bytes | None) -> bool:
+    if not request or response is None or not response:
+        return False
+    if response[0] == 0x7F:
+        return len(response) >= 2 and response[1] == request[0]
+    if response[0] != ((request[0] + 0x40) & 0xFF):
+        return False
+    if request[0] in (0x10, 0x27, 0x3E):
+        return len(request) >= 2 and len(response) >= 2 and (response[1] & 0x7F) == (request[1] & 0x7F)
+    if request[0] in (0x22, 0x2E):
+        return len(request) >= 3 and len(response) >= 3 and response[1:3] == request[1:3]
+    return True
+
+
 def parse_seed(payload: bytes | None) -> int | None:
     if payload is None or len(payload) != 4:
         return None
@@ -173,6 +190,7 @@ def send_uds(
     payload: bytes,
     timeout_s: float,
 ) -> tuple[bytes | None, int, int | None, int]:
+    drain_can(can_socket, max_seconds=0.01)
     frame_data = pack_single_frame_payload(payload)
     send_wall_ns = time.time_ns()
     send_monotonic_ns = time.perf_counter_ns()
@@ -190,9 +208,11 @@ def send_uds(
         arbitration_id, data = unpack_can_frame(raw)
         if arbitration_id != response_id:
             continue
-        recv_monotonic_ns = time.perf_counter_ns()
-        response_payload = unpack_single_frame_payload(data)
-        break
+        candidate = unpack_single_frame_payload(data)
+        if response_matches_request(payload, candidate):
+            recv_monotonic_ns = time.perf_counter_ns()
+            response_payload = candidate
+            break
     return response_payload, send_monotonic_ns, recv_monotonic_ns, send_wall_ns
 
 
@@ -290,6 +310,11 @@ def build_mutations(iterations: int, seed: int) -> list[Mutation]:
 
 def unlock_security_access(can_socket: socket.socket, args: argparse.Namespace) -> list[tuple[str, bytes, bytes | None]]:
     setup: list[tuple[str, bytes, bytes | None]] = []
+    if args.trigger_hotpatch:
+        payload = bytes([0x2E, 0xF1, 0x90, 0x01])
+        response, _, _, _ = send_uds(can_socket, args.request_id, args.response_id, payload, args.timeout)
+        setup.append(("trigger_kintsugi_hotpatch", payload, response))
+        time.sleep(args.setup_delay_ms / 1000.0)
     for name, payload in [
         ("reset_default_session", bytes([0x10, 0x01])),
         ("enter_extended_session", bytes([0x10, 0x03])),
@@ -327,6 +352,9 @@ def run_campaign(can_socket: socket.socket, serial_fd: int, args: argparse.Names
         latency_ms = None if recv_ns is None else (recv_ns - send_ns) / 1_000_000.0
         rows.append(
             FuzzRow(
+                run_id=args.run_id,
+                random_seed=args.seed,
+                patch_state=args.patch_state,
                 trial=mutation.trial,
                 mutation_kind=mutation.kind,
                 did=mutation.did,
@@ -412,9 +440,14 @@ def write_detail_csv(path: Path, rows: list[FuzzRow]) -> None:
         writer = csv.DictWriter(
             handle,
             fieldnames=[
+                "run_id",
+                "random_seed",
+                "case_id",
+                "patch_state",
                 "trial",
                 "mutation_kind",
                 "did_hex",
+                "payload_length",
                 "data_hex",
                 "request_payload",
                 "request_can_data_hex",
@@ -423,6 +456,8 @@ def write_detail_csv(path: Path, rows: list[FuzzRow]) -> None:
                 "response_sid",
                 "nrc",
                 "attack_pass",
+                "attack_success",
+                "timeout",
                 "send_wall_iso",
                 "send_monotonic_ns",
                 "recv_monotonic_ns",
@@ -440,9 +475,14 @@ def write_detail_csv(path: Path, rows: list[FuzzRow]) -> None:
         for row in rows:
             writer.writerow(
                 {
+                    "run_id": row.run_id,
+                    "random_seed": row.random_seed,
+                    "case_id": row.trial,
+                    "patch_state": row.patch_state,
                     "trial": row.trial,
                     "mutation_kind": row.mutation_kind,
                     "did_hex": f"0x{row.did:04X}",
+                    "payload_length": len(row.request_payload),
                     "data_hex": hex_bytes(row.data),
                     "request_payload": hex_bytes(row.request_payload),
                     "request_can_data_hex": hex_bytes(row.request_can_data),
@@ -451,6 +491,8 @@ def write_detail_csv(path: Path, rows: list[FuzzRow]) -> None:
                     "response_sid": row.response_sid,
                     "nrc": row.nrc,
                     "attack_pass": "true" if row.attack_pass else "false",
+                    "attack_success": "true" if row.attack_pass else "false",
+                    "timeout": "true" if row.response_payload is None else "false",
                     "send_wall_iso": row.send_wall_iso,
                     "send_monotonic_ns": row.send_monotonic_ns,
                     "recv_monotonic_ns": "" if row.recv_monotonic_ns is None else row.recv_monotonic_ns,
@@ -492,6 +534,9 @@ def write_summary_csv(path: Path, rows: list[FuzzRow], setup_rows: list[tuple[st
     with path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
         writer.writerow(["metric", "value"])
+        writer.writerow(["run_id", rows[0].run_id if rows else ""])
+        writer.writerow(["random_seed", rows[0].random_seed if rows else ""])
+        writer.writerow(["patch_state", rows[0].patch_state if rows else ""])
         writer.writerow(["total_trials", total])
         writer.writerow(["setup_positive", "true" if setup_ok else "false"])
         writer.writerow(["attack_pass_count", pass_count])
@@ -629,6 +674,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--baud", default=115200, type=int)
     parser.add_argument("--iterations", default=1000, type=int)
     parser.add_argument("--seed", default=20260620, type=int)
+    parser.add_argument("--run-id", default="run_1")
+    parser.add_argument("--patch-state", choices=("before", "after"), default="before")
+    parser.add_argument(
+        "--trigger-hotpatch",
+        action="store_true",
+        help="Apply the Kintsugi security hotpatch once before security setup and fuzzing.",
+    )
     parser.add_argument("--timeout", default=0.25, type=float)
     parser.add_argument("--setup-delay-ms", default=20.0, type=float)
     parser.add_argument("--inter-request-delay-ms", default=12.0, type=float)

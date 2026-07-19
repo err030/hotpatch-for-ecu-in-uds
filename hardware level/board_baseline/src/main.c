@@ -205,7 +205,7 @@ static void board_diag_runtime_init(void)
     );
 #endif
 #if (BOARD_UDS_APPLY_SECURITY_ACCESS_HOTPATCH == 1)
-    uds_ecu_apply_security_access_hotpatch(&g_adjacent_ecu);
+    uds_ecu_activate_quarantine_policy(&g_adjacent_ecu);
 #endif
     uds_ecu_task_init(&g_adjacent_ecu_task, &g_adjacent_ecu);
     uds_board_adapter_init_gateway_path(

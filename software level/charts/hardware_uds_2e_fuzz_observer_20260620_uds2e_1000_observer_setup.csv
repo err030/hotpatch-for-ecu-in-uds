@@ -1,5 +1,0 @@
-step,request_payload,response_payload,response_class,response_sid,nrc
-reset_default_session,1001,500100321388,positive_other,0x50,
-enter_extended_session,1003,500300321388,positive_other,0x50,
-request_security_seed,2701,67011202,positive_other,0x67,
-send_key_from_weak_transform,2702B758,6702,positive_other,0x67,

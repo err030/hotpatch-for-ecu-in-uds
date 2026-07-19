@@ -5,11 +5,19 @@
 import unittest
 
 from src.hotpatch_uds.ecu import (
+    BaseECU,
     READ_ONLY_STATUS_DID,
     ReplayWriteVulnerableECU,
     StickyUnlockAfterFailedKeyECU,
     StickyUnlockAfterSessionChangeECU,
     VALID_WRITE_DID,
+)
+from src.hotpatch_uds.protocol import (
+    NRC_INCORRECT_MESSAGE_LENGTH,
+    NRC_REQUEST_OUT_OF_RANGE,
+    SESSION_EXTENDED,
+    SID_WRITE_DATA_BY_IDENTIFIER,
+    UDSRequest,
 )
 from src.hotpatch_uds.gateway import GATEWAY_MODE_RESTRICTED
 from src.hotpatch_uds.scenarios import (
@@ -87,6 +95,49 @@ class GatewayAndAttackTests(unittest.TestCase):
         replay_result = client.write_data_by_identifier(VALID_WRITE_DID, b"\x04")
 
         self.assertTrue(replay_result.response.positive)
+
+    def test_replay_authorization_does_not_bypass_quarantine(self) -> None:
+        ecu = BaseECU(
+            write_requires_unlock=True,
+            allow_replay_without_unlock=True,
+            quarantine_config_write_did=True,
+        )
+        replay_value = b"\x04"
+        ecu.state.session = SESSION_EXTENDED
+        ecu.state.last_authorized_write = (VALID_WRITE_DID, replay_value)
+
+        response = ecu.handle(
+            UDSRequest(
+                sid=SID_WRITE_DATA_BY_IDENTIFIER,
+                did=VALID_WRITE_DID,
+                data=replay_value,
+            )
+        )
+
+        self.assertFalse(response.positive)
+        self.assertEqual(response.nrc, NRC_REQUEST_OUT_OF_RANGE)
+        self.assertNotIn(VALID_WRITE_DID, ecu.state.writes)
+
+    def test_replay_authorization_does_not_bypass_length_check(self) -> None:
+        ecu = BaseECU(
+            write_requires_unlock=True,
+            allow_replay_without_unlock=True,
+        )
+        oversized_value = b"\x01\x02\x03\x04\x05"
+        ecu.state.session = SESSION_EXTENDED
+        ecu.state.last_authorized_write = (VALID_WRITE_DID, oversized_value)
+
+        response = ecu.handle(
+            UDSRequest(
+                sid=SID_WRITE_DATA_BY_IDENTIFIER,
+                did=VALID_WRITE_DID,
+                data=oversized_value,
+            )
+        )
+
+        self.assertFalse(response.positive)
+        self.assertEqual(response.nrc, NRC_INCORRECT_MESSAGE_LENGTH)
+        self.assertNotIn(VALID_WRITE_DID, ecu.state.writes)
 
 
 if __name__ == "__main__":

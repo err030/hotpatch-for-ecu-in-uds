@@ -1,0 +1,133 @@
+2026-07-10T12:41:27+02:00 start run_1 seed=20260710 patch_state=before
+Applying system reset.
+Run.
+completed 100/1000
+completed 200/1000
+completed 300/1000
+completed 400/1000
+completed 500/1000
+completed 600/1000
+completed 700/1000
+completed 800/1000
+completed 900/1000
+completed 1000/1000
+trials=1000 attack_pass=756 attack_fail=244
+observer_consistent=1000/1000
+wrote software level/results/20260710_hardware_fuzz/hardware_uds_2e_fuzz_observer_run1_seed20260710_before_setup.csv
+wrote software level/results/20260710_hardware_fuzz/hardware_uds_2e_fuzz_observer_run1_seed20260710_before_detail.csv
+wrote software level/results/20260710_hardware_fuzz/hardware_uds_2e_fuzz_observer_run1_seed20260710_before_summary.csv
+wrote software level/results/20260710_hardware_fuzz/hardware_uds_2e_fuzz_observer_run1_seed20260710_before_nucleo.log
+wrote software level/results/20260710_hardware_fuzz/hardware_uds_2e_fuzz_observer_run1_seed20260710_before_nucleo.csv
+wrote software level/results/20260710_hardware_fuzz/hardware_uds_2e_fuzz_observer_run1_seed20260710_before.pdf
+completed run_1 patch_state=before
+2026-07-10T12:41:56+02:00 start run_1 seed=20260710 patch_state=after
+Applying system reset.
+Run.
+completed 100/1000
+completed 200/1000
+completed 300/1000
+completed 400/1000
+completed 500/1000
+completed 600/1000
+completed 700/1000
+completed 800/1000
+completed 900/1000
+completed 1000/1000
+trials=1000 attack_pass=0 attack_fail=1000
+observer_consistent=1000/1000
+wrote software level/results/20260710_hardware_fuzz/hardware_uds_2e_fuzz_observer_run1_seed20260710_after_setup.csv
+wrote software level/results/20260710_hardware_fuzz/hardware_uds_2e_fuzz_observer_run1_seed20260710_after_detail.csv
+wrote software level/results/20260710_hardware_fuzz/hardware_uds_2e_fuzz_observer_run1_seed20260710_after_summary.csv
+wrote software level/results/20260710_hardware_fuzz/hardware_uds_2e_fuzz_observer_run1_seed20260710_after_nucleo.log
+wrote software level/results/20260710_hardware_fuzz/hardware_uds_2e_fuzz_observer_run1_seed20260710_after_nucleo.csv
+wrote software level/results/20260710_hardware_fuzz/hardware_uds_2e_fuzz_observer_run1_seed20260710_after.pdf
+completed run_1 patch_state=after
+2026-07-10T12:42:26+02:00 start run_2 seed=20260711 patch_state=before
+Applying system reset.
+Run.
+completed 100/1000
+completed 200/1000
+completed 300/1000
+completed 400/1000
+completed 500/1000
+completed 600/1000
+completed 700/1000
+completed 800/1000
+completed 900/1000
+completed 1000/1000
+trials=1000 attack_pass=771 attack_fail=229
+observer_consistent=1000/1000
+wrote software level/results/20260710_hardware_fuzz/hardware_uds_2e_fuzz_observer_run2_seed20260711_before_setup.csv
+wrote software level/results/20260710_hardware_fuzz/hardware_uds_2e_fuzz_observer_run2_seed20260711_before_detail.csv
+wrote software level/results/20260710_hardware_fuzz/hardware_uds_2e_fuzz_observer_run2_seed20260711_before_summary.csv
+wrote software level/results/20260710_hardware_fuzz/hardware_uds_2e_fuzz_observer_run2_seed20260711_before_nucleo.log
+wrote software level/results/20260710_hardware_fuzz/hardware_uds_2e_fuzz_observer_run2_seed20260711_before_nucleo.csv
+wrote software level/results/20260710_hardware_fuzz/hardware_uds_2e_fuzz_observer_run2_seed20260711_before.pdf
+completed run_2 patch_state=before
+2026-07-10T12:42:55+02:00 start run_2 seed=20260711 patch_state=after
+Applying system reset.
+Run.
+completed 100/1000
+completed 200/1000
+completed 300/1000
+completed 400/1000
+completed 500/1000
+completed 600/1000
+completed 700/1000
+completed 800/1000
+completed 900/1000
+completed 1000/1000
+trials=1000 attack_pass=0 attack_fail=1000
+observer_consistent=1000/1000
+wrote software level/results/20260710_hardware_fuzz/hardware_uds_2e_fuzz_observer_run2_seed20260711_after_setup.csv
+wrote software level/results/20260710_hardware_fuzz/hardware_uds_2e_fuzz_observer_run2_seed20260711_after_detail.csv
+wrote software level/results/20260710_hardware_fuzz/hardware_uds_2e_fuzz_observer_run2_seed20260711_after_summary.csv
+wrote software level/results/20260710_hardware_fuzz/hardware_uds_2e_fuzz_observer_run2_seed20260711_after_nucleo.log
+wrote software level/results/20260710_hardware_fuzz/hardware_uds_2e_fuzz_observer_run2_seed20260711_after_nucleo.csv
+wrote software level/results/20260710_hardware_fuzz/hardware_uds_2e_fuzz_observer_run2_seed20260711_after.pdf
+completed run_2 patch_state=after
+2026-07-10T12:43:25+02:00 start run_3 seed=20260712 patch_state=before
+Applying system reset.
+Run.
+completed 100/1000
+completed 200/1000
+completed 300/1000
+completed 400/1000
+completed 500/1000
+completed 600/1000
+completed 700/1000
+completed 800/1000
+completed 900/1000
+completed 1000/1000
+trials=1000 attack_pass=798 attack_fail=202
+observer_consistent=1000/1000
+wrote software level/results/20260710_hardware_fuzz/hardware_uds_2e_fuzz_observer_run3_seed20260712_before_setup.csv
+wrote software level/results/20260710_hardware_fuzz/hardware_uds_2e_fuzz_observer_run3_seed20260712_before_detail.csv
+wrote software level/results/20260710_hardware_fuzz/hardware_uds_2e_fuzz_observer_run3_seed20260712_before_summary.csv
+wrote software level/results/20260710_hardware_fuzz/hardware_uds_2e_fuzz_observer_run3_seed20260712_before_nucleo.log
+wrote software level/results/20260710_hardware_fuzz/hardware_uds_2e_fuzz_observer_run3_seed20260712_before_nucleo.csv
+wrote software level/results/20260710_hardware_fuzz/hardware_uds_2e_fuzz_observer_run3_seed20260712_before.pdf
+completed run_3 patch_state=before
+2026-07-10T12:43:54+02:00 start run_3 seed=20260712 patch_state=after
+Applying system reset.
+Run.
+completed 100/1000
+completed 200/1000
+completed 300/1000
+completed 400/1000
+completed 500/1000
+completed 600/1000
+completed 700/1000
+completed 800/1000
+completed 900/1000
+completed 1000/1000
+trials=1000 attack_pass=0 attack_fail=1000
+observer_consistent=1000/1000
+wrote software level/results/20260710_hardware_fuzz/hardware_uds_2e_fuzz_observer_run3_seed20260712_after_setup.csv
+wrote software level/results/20260710_hardware_fuzz/hardware_uds_2e_fuzz_observer_run3_seed20260712_after_detail.csv
+wrote software level/results/20260710_hardware_fuzz/hardware_uds_2e_fuzz_observer_run3_seed20260712_after_summary.csv
+wrote software level/results/20260710_hardware_fuzz/hardware_uds_2e_fuzz_observer_run3_seed20260712_after_nucleo.log
+wrote software level/results/20260710_hardware_fuzz/hardware_uds_2e_fuzz_observer_run3_seed20260712_after_nucleo.csv
+wrote software level/results/20260710_hardware_fuzz/hardware_uds_2e_fuzz_observer_run3_seed20260712_after.pdf
+completed run_3 patch_state=after
+all_campaigns_complete=true

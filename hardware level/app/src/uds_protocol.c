@@ -22,6 +22,7 @@ bool uds_request_from_payload(
 
     switch (request->sid) {
     case SID_DIAGNOSTIC_SESSION_CONTROL:
+    case SID_TESTER_PRESENT:
         if (payload_length != 2U) {
             return false;
         }
@@ -89,6 +90,7 @@ bool uds_request_to_payload(
 
     switch (request->sid) {
     case SID_DIAGNOSTIC_SESSION_CONTROL:
+    case SID_TESTER_PRESENT:
         if (!request->has_subfunction) {
             return false;
         }

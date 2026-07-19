@@ -28,13 +28,19 @@ void uds_ecu_init_vulnerable(
     uds_dispatcher_init_vulnerable(&ecu->dispatcher);
 }
 
-void uds_ecu_apply_security_access_hotpatch(uds_ecu_t *ecu)
+void uds_ecu_activate_quarantine_policy(uds_ecu_t *ecu)
 {
     if (ecu == NULL) {
         return;
     }
 
-    uds_dispatcher_apply_security_access_hotpatch(&ecu->dispatcher);
+    uds_dispatcher_activate_quarantine_policy(&ecu->dispatcher);
+}
+
+bool uds_ecu_quarantine_policy_active(const uds_ecu_t *ecu)
+{
+    return ecu != NULL &&
+        uds_dispatcher_quarantine_policy_active(&ecu->dispatcher);
 }
 
 bool uds_ecu_accepts_request_frame(

@@ -1,0 +1,14 @@
+generated_at=2026-07-10T17:54:49+02:00
+scenario_count=16
+fleet_size=1000
+horizon_days=60
+seed=20260710
+ota_slots=20
+hotpatch_slots=120
+ota_duration_min=45
+hotpatch_duration_min=3
+capable_ratios=0.70,0.85,0.95,1.00
+additional_delivery_delay_h=0,6,24,72
+base_85pct_0h_exposure_vehicle_days=2970.517361
+base_85pct_0h_reduction=0.686791
+base_matches_fleet_main=true
